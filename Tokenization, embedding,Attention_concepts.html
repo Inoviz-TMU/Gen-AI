@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From Words to Vectors — Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400&family=JetBrains+Mono:wght@400;500;600;700&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #1a2332;
+    --bg-soft: #212c3f;
+    --bg-card: #243044;
+    --chalk: #e8e6e0;
+    --chalk-dim: #aab2c0;
+    --chalk-faint: #6b7588;
+    --gold: #e8c468;
+    --rose: #d4756b;
+    --teal: #6ba3a0;
+    --teal-bright: #8fc5c1;
+    --violet: #a594c4;
+    --rule: rgba(232,230,224,0.14);
+    --rule-bright: rgba(232,230,224,0.28);
+    --serif: 'Source Serif 4', Georgia, serif;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Karla', sans-serif;
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+
+  html{ scroll-behavior: smooth; }
+
+  body{
+    background: var(--bg);
+    color: var(--chalk);
+    font-family: var(--sans);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* subtle chalkboard texture */
+  body::before{
+    content:'';
+    position: fixed;
+    inset:0;
+    background-image:
+      radial-gradient(ellipse at 20% 10%, rgba(255,255,255,0.025), transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(255,255,255,0.02), transparent 50%);
+    pointer-events:none;
+    z-index:0;
+  }
+
+  .rail{
+    position: fixed;
+    left: 0; top:0; bottom:0;
+    width: 6px;
+    background: var(--bg-soft);
+    z-index: 50;
+  }
+  .rail-fill{
+    position:absolute; left:0; top:0; width:100%;
+    background: linear-gradient(180deg, var(--gold), var(--teal));
+    height:0%;
+    transition: height 0.1s linear;
+  }
+
+  nav.toc{
+    position: fixed;
+    right: 22px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 60;
+    display:flex;
+    flex-direction:column;
+    gap: 14px;
+    align-items:flex-end;
+  }
+  nav.toc a{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    text-decoration:none;
+    color: var(--chalk-faint);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    transition: color 0.25s;
+  }
+  nav.toc a .dot{
+    width:7px; height:7px;
+    border-radius:50%;
+    background: var(--chalk-faint);
+    transition: all 0.25s;
+    flex-shrink:0;
+  }
+  nav.toc a .label{
+    opacity:0;
+    transform: translateX(6px);
+    transition: all 0.25s;
+    white-space:nowrap;
+    background: var(--bg-card);
+    padding: 3px 9px;
+    border-radius: 4px;
+    border: 1px solid var(--rule);
+  }
+  nav.toc a:hover .label, nav.toc a.active .label{ opacity:1; transform:translateX(0); }
+  nav.toc a.active .dot{ background: var(--gold); width:10px; height:10px; box-shadow: 0 0 0 4px rgba(232,196,104,0.18);}
+  nav.toc a.active{ color: var(--gold); }
+
+  @media (max-width: 900px){ nav.toc{ display:none; } }
+
+  section{
+    position: relative;
+    z-index:1;
+    padding: 110px 8vw 110px;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+
+  .hero{
+    min-height: 92vh;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding-top: 60px;
+    padding-bottom: 60px;
+  }
+  .hero .eyebrow{
+    font-family: var(--mono);
+    color: var(--gold);
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+    display:flex;
+    align-items:center;
+    gap: 12px;
+  }
+  .hero .eyebrow::before{
+    content:'';
+    width: 28px; height:1px;
+    background: var(--gold);
+  }
+  .hero h1{
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(2.6rem, 5.5vw, 5rem);
+    line-height: 1.05;
+    color: var(--chalk);
+    max-width: 14ch;
+  }
+  .hero h1 em{
+    font-style: italic;
+    color: var(--teal-bright);
+    font-weight: 500;
+  }
+  .hero .sub{
+    margin-top: 28px;
+    font-size: 1.2rem;
+    color: var(--chalk-dim);
+    max-width: 46ch;
+    font-family: var(--serif);
+    font-style: italic;
+  }
+  .hero .thread{
+    margin-top: 56px;
+    padding: 22px 26px;
+    background: var(--bg-card);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--gold);
+    border-radius: 6px;
+    max-width: 620px;
+  }
+  .hero .thread .tag{
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--gold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .hero .thread .sentence{
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    color: var(--chalk);
+  }
+  .scrolldown{
+    margin-top: 50px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--chalk-faint);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .scrolldown .arrow{
+    animation: bob 1.8s ease-in-out infinite;
+  }
+  @keyframes bob{ 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(5px);} }
+
+  .kicker{
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--teal-bright);
+    margin-bottom: 14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .kicker .n{
+    font-family: var(--mono);
+    color: var(--bg);
+    background: var(--teal-bright);
+    width:22px; height:22px;
+    border-radius:50%;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-size: 11px;
+    font-weight:700;
+  }
+
+  h2.title{
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(1.9rem, 3.4vw, 2.9rem);
+    color: var(--chalk);
+    margin-bottom: 8px;
+    line-height: 1.15;
+  }
+  h2.title .accent{ color: var(--gold); font-style: italic; font-weight: 500;}
+
+  .lede{
+    font-family: var(--serif);
+    font-size: 1.25rem;
+    color: var(--chalk-dim);
+    max-width: 62ch;
+    margin: 18px 0 40px;
+    line-height: 1.55;
+  }
+
+  .feynman{
+    background: var(--bg-card);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 26px 30px;
+    margin: 30px 0;
+    position: relative;
+  }
+  .feynman::before{
+    content: '"';
+    font-family: var(--serif);
+    position:absolute;
+    top: -6px; left: 18px;
+    font-size: 64px;
+    color: var(--gold);
+    opacity: 0.35;
+    line-height:1;
+  }
+  .feynman p{
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 1.12rem;
+    color: var(--chalk);
+    padding-left: 20px;
+    line-height: 1.6;
+  }
+  .feynman .who{
+    margin-top: 10px;
+    padding-left: 20px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--chalk-faint);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .grid3{ display:grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
+  @media (max-width: 800px){ .grid2, .grid3{ grid-template-columns: 1fr; } }
+
+  .card{
+    background: var(--bg-card);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 24px;
+  }
+  .card h4{
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--gold);
+    margin-bottom: 10px;
+    letter-spacing: 0.01em;
+  }
+  .card p, .card li{ color: var(--chalk-dim); font-size: 0.95rem; }
+  .card ul{ padding-left: 1.1em; margin-top: 8px; }
+  .card li{ margin-bottom: 6px; }
+
+  .diagram-wrap{
+    background: var(--bg-card);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 30px;
+    margin: 36px 0;
+    overflow-x: auto;
+  }
+  .diagram-wrap .cap{
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--chalk-faint);
+    text-align:center;
+    margin-top: 16px;
+    letter-spacing: 0.03em;
+  }
+
+  .token-chip{
+    display:inline-flex;
+    align-items:center;
+    font-family: var(--mono);
+    font-size: 0.92rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin: 4px;
+    border: 1px solid var(--rule-bright);
+  }
+
+  table.cmp{
+    width:100%;
+    border-collapse: collapse;
+    margin: 24px 0;
+    font-size: 0.92rem;
+  }
+  table.cmp th{
+    text-align:left;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--gold);
+    padding: 10px 16px;
+    border-bottom: 2px solid var(--rule-bright);
+  }
+  table.cmp td{
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule);
+    color: var(--chalk-dim);
+    vertical-align: top;
+  }
+  table.cmp tr:hover td{ background: rgba(255,255,255,0.02); }
+  table.cmp td.hl{ color: var(--chalk); font-family: var(--mono); }
+
+  .divider{
+    height:1px;
+    background: linear-gradient(90deg, transparent, var(--rule-bright), transparent);
+    margin: 90px 0 0;
+  }
+
+  .callout{
+    border-left: 3px solid var(--rose);
+    background: rgba(212,117,107,0.08);
+    padding: 16px 22px;
+    border-radius: 0 8px 8px 0;
+    margin: 24px 0;
+    font-size: 0.95rem;
+    color: var(--chalk-dim);
+  }
+  .callout strong{ color: var(--rose); }
+
+  .tip{
+    border-left: 3px solid var(--teal);
+    background: rgba(107,163,160,0.08);
+    padding: 16px 22px;
+    border-radius: 0 8px 8px 0;
+    margin: 24px 0;
+    font-size: 0.95rem;
+    color: var(--chalk-dim);
+  }
+  .tip strong{ color: var(--teal-bright); }
+
+  button.btn{
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: var(--gold);
+    color: #1a2332;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 700;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  button.btn:hover{ transform: translateY(-1px); box-shadow: 0 4px 14px rgba(232,196,104,0.3); }
+  button.btn.secondary{
+    background: transparent;
+    color: var(--teal-bright);
+    border: 1px solid var(--teal);
+  }
+  button.btn.secondary:hover{ box-shadow: 0 4px 14px rgba(107,163,160,0.2); }
+
+  .btnrow{ display:flex; gap:12px; margin: 20px 0; flex-wrap:wrap; }
+
+  footer{
+    padding: 60px 8vw 80px;
+    text-align:center;
+    color: var(--chalk-faint);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+
+  /* SVG helper classes */
+  .svg-label{ font-family: var(--mono); font-size: 13px; fill: var(--chalk); }
+  .svg-label-sm{ font-family: var(--mono); font-size: 11px; fill: var(--chalk-dim); }
+  .svg-title{ font-family: var(--sans); font-weight:700; font-size: 13px; fill: var(--gold); }
+
+  .fade-in{
+    opacity:0;
+    transform: translateY(16px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .fade-in.visible{ opacity:1; transform: translateY(0); }
+
+  .glossary-term{
+    font-family: var(--mono);
+    color: var(--gold);
+    border-bottom: 1px dotted var(--gold);
+    cursor: help;
+  }
+
+  ::selection{ background: var(--gold); color: var(--bg); }
+
+  ::-webkit-scrollbar{ width: 10px; }
+  ::-webkit-scrollbar-track{ background: var(--bg); }
+  ::-webkit-scrollbar-thumb{ background: var(--bg-soft); border-radius: 5px; }
+</style>
+</head>
+<body>
+
+<div class="rail"><div class="rail-fill" id="railFill"></div></div>
+
+<nav class="toc" id="tocNav">
+  <a href="#hero" data-target="hero"><span class="dot"></span><span class="label">Start</span></a>
+  <a href="#tokens" data-target="tokens"><span class="dot"></span><span class="label">Tokens</span></a>
+  <a href="#embeddings" data-target="embeddings"><span class="dot"></span><span class="label">Embeddings</span></a>
+  <a href="#models" data-target="models"><span class="dot"></span><span class="label">Embedding Models</span></a>
+  <a href="#transformer" data-target="transformer"><span class="dot"></span><span class="label">Transformer</span></a>
+  <a href="#attention" data-target="attention"><span class="dot"></span><span class="label">Self-Attention</span></a>
+  <a href="#position" data-target="position"><span class="dot"></span><span class="label">Position Encoding</span></a>
+  <a href="#assemble" data-target="assemble"><span class="dot"></span><span class="label">Putting It Together</span></a>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section class="hero" id="hero">
+  <div class="eyebrow">walkthrough</div>
+  <h1>How a sentence becomes <em>understanding</em>, one matrix at a time.</h1>
+  <p class="sub">If you can't build it from scratch in your head, you don't understand it yet. So let's build it — token by token, vector by vector.</p>
+  <div class="thread">
+    <div class="tag">Our thread for the entire lecture</div>
+    <div class="sentence">"The cat sat on the mat."</div>
+  </div>
+  <div class="scrolldown"><span>scroll to begin</span><span class="arrow">↓</span></div>
+</section>
+
+<!-- ============ TOKENS ============ -->
+<section id="tokens">
+  <div class="kicker"><span class="n">1</span>Tokenization</div>
+  <h2 class="title">Before a machine can think about words, it needs to <span class="accent">cut them up.</span></h2>
+  <p class="lede">A neural network only understands numbers. So the very first job — before any "intelligence" happens — is turning text into a sequence of discrete pieces. This piece is called a <strong>token</strong>.</p>
+
+  <div class="feynman">
+    <p>Imagine you can't read English, but I hand you a long string of beads, each bead with a number painted on it. You don't know what the numbers mean yet — but if I give you enough strings of beads, and tell you which strings "go together" in the real world, you can start learning patterns. That's all a token is: a bead with a number on it. The model never sees letters. It sees beads.</p>
+    <div class="who">— the core idea, before any math</div>
+  </div>
+
+  <h3 style="font-family:var(--serif); font-size:1.4rem; margin:48px 0 8px; color:var(--chalk);">Three ways to cut a sentence</h3>
+  <p style="color:var(--chalk-dim); max-width:60ch; margin-bottom:10px;">Before we settle on the real answer, let's see why the obvious approaches fail.</p>
+
+  <div id="tokenize-demo-mount"></div>
+
+  <table class="cmp">
+    <tr><th>Approach</th><th>How it splits</th><th>The problem</th></tr>
+    <tr>
+      <td class="hl">Character-level</td>
+      <td>t-h-e- -c-a-t- -s-a-t...</td>
+      <td>Sequences become huge. "Understanding" takes 13 steps just to spell one word — the model has to work hard before it even gets to meaning.</td>
+    </tr>
+    <tr>
+      <td class="hl">Word-level</td>
+      <td>The / cat / sat / on / the / mat</td>
+      <td>Vocabulary explodes — every language has hundreds of thousands of words, plus typos, slang, and new words break it completely. "unbelievably" and "unbelievable" become two unrelated entries.</td>
+    </tr>
+    <tr>
+      <td class="hl">Subword (BPE)</td>
+      <td>The / cat / sat / on / the / mat <em style="color:var(--chalk-faint)">(common words stay whole)</em></td>
+      <td><span style="color:var(--teal-bright);">This is what production models actually use.</span> Rare or unseen words get broken into familiar pieces instead of failing outright.</td>
+    </tr>
+  </table>
+
+  <h3 style="font-family:var(--serif); font-size:1.4rem; margin:48px 0 8px; color:var(--chalk);">Byte-Pair Encoding (BPE) </h3>
+  <p style="color:var(--chalk-dim); max-width:65ch;">Here's the entire algorithm in one sentence: <strong style="color:var(--chalk);">start with individual characters, then repeatedly merge whichever pair appears most often, until you have a vocabulary of a useful size.</strong> That's it. No grammar rules. No dictionary. Just "what pairs show up together a lot, over and over, across a giant pile of text."</p>
+
+  <div class="diagram-wrap">
+    <div id="bpe-diagram-mount"></div>
+    <div class="cap">BPE merging "lower" + "lowest" — shared pieces get merged into reusable chunks</div>
+  </div>
+
+  <div class="tip"><strong>Why this matters:</strong> this is exactly why GPT-style models can handle a word they've never seen, a typo, or even code — because the word just gets sliced into smaller familiar pieces instead of crashing into an "unknown word" wall.</div>
+
+  <h3 style="font-family:var(--serif); font-size:1.4rem; margin:48px 0 8px; color:var(--chalk);">Our sentence, tokenized</h3>
+  <p style="color:var(--chalk-dim); max-width:60ch; margin-bottom:18px;">Let's tokenize our running example the way a real subword tokenizer would. Notice tokens don't always equal full words — and a leading space is often part of the token itself.</p>
+
+  <div id="sentence-tokens-mount"></div>
+
+  <div class="callout"><strong>Live it yourself:</strong> open <span class="glossary-term" title="OpenAI's official tool for visualizing tokenization">platform.openai.com/tokenizer</span>  type any sentence. Watching weird words like "antidisestablishmentarianism" shatter into pieces in real time .</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============ EMBEDDINGS ============ -->
+<section id="embeddings">
+  <div class="kicker"><span class="n">2</span>Embeddings</div>
+  <h2 class="title">A token ID is just an address. <span class="accent">An embedding is the meaning that lives there.</span></h2>
+  <p class="lede">Token IDs (147, 2391, 88...) carry zero meaning — token 5000 isn't "more" than token 10 in any sense. We need to convert each ID into something that captures <em>what the word means</em>, and where it sits relative to every other word in meaning-space.</p>
+
+  <div class="feynman">
+    <p>Think of it like this: imagine every word in the language gets a house on an enormous map. Words that mean similar things get houses near each other. "King" and "Queen" are neighbors. "Happy" and "Joyful" are practically sharing a wall. "Bank" — the money kind — lives near "money" and "loan." But here's the twist: that same word "bank" also has a *second* house, near "river" and "shore," for when it means riverbank. The embedding is just the coordinates of that house. Except instead of 2 coordinates like a map (x, y), we use hundreds or thousands of coordinates — because meaning has way more than two dimensions to it.</p>
+    <div class="who">— why we need vectors, not just numbers</div>
+  </div>
+
+  <h3 style="font-family:var(--serif); font-size:1.4rem; margin:48px 0 12px; color:var(--chalk);">From token ID → dense vector</h3>
+  <div class="diagram-wrap">
+    <div id="embedding-lookup-mount"></div>
+    <div class="cap">Each token ID indexes into a giant lookup table — that row of numbers IS the word's meaning</div>
+  </div>
+
+  <p style="color:var(--chalk-dim); max-width:65ch; margin-top:28px;">Here's the part that feels like magic but isn't: nobody hand-writes these numbers. They start out <em>random</em>, and then get nudged, bit by bit, during training — every time the model is wrong about predicting a word, the nudge adjusts these vectors a tiny bit so similar words drift toward each other in this space.</p>
+
+  <h3 style="font-family:var(--serif); font-size:1.4rem; margin:48px 0 12px; color:var(--chalk);">The famous demonstration: vector arithmetic</h3>
+  <p style="color:var(--chalk-dim); max-width:65ch;">If embeddings really capture meaning as geometry, then meaning should behave like geometry. And it does — astonishingly:</p>
+
+  <div class="diagram-wrap">
+    <div id="vector-arithmetic-mount"></div>
+    <div class="cap">king − man + woman ≈ queen — direction in vector space encodes relationship, not just identity</div>
+  </div>
+
+  <div class="grid2" style="margin-top: 40px;">
+    <div class="card">
+      <h4>What "close together" actually means</h4>
+      <p>We measure closeness with <strong style="color:var(--chalk);">cosine similarity</strong> — basically, "do these two vectors point in roughly the same direction?" Same direction = similar meaning, regardless of magnitude.</p>
+    </div>
+    <div class="card">
+      <h4>How many dimensions?</h4>
+      <p>Real models use anywhere from 256 to 4096+ dimensions per word. You can't visualize that — so every 2D plot you see of embeddings is a heavy compression (via PCA or t-SNE) of a much higher-dimensional reality.</p>
+    </div>
+  </div>
+
+  <div class="tip" style="margin-top:32px;"><strong>Important nuance for later:</strong> this embedding is the word's meaning <em>in isolation</em> — before it has read the rest of the sentence. "Bank" gets the exact same starting vector whether the sentence is about rivers or money. Fixing that is literally what the Transformer block does next. Hold that thought.</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============ EMBEDDING MODELS TODAY ============ -->
+<section id="models">
+  <div class="kicker"><span class="n">3</span>Embedding models, today</div>
+  <h2 class="title">The embedding layer inside an LLM vs. <span class="accent">standalone embedding models</span></h2>
+  <p class="lede">There's a subtlety worth pausing on. The embedding table we just described lives <em>inside</em> a language model and exists to predict the next token. But there's a whole separate category of models whose entire job is just to produce excellent embeddings — used for search, recommendation, and retrieval. As of mid-2026, here's the landscape:</p>
+
+  <table class="cmp">
+    <tr><th>Model</th><th>Maker</th><th>What it's known for</th></tr>
+    <tr><td class="hl">Gemini Embedding</td><td>Google</td><td>Leads English MTEB benchmarks; one of the few that puts text, images, video, audio and PDFs into a single shared vector space.</td></tr>
+    <tr><td class="hl">Voyage / Cohere embed-v4</td><td>Voyage AI / Cohere</td><td>Strong retrieval quality, used heavily in production RAG (retrieval-augmented generation) systems.</td></tr>
+    <tr><td class="hl">Qwen3-Embedding</td><td>Alibaba (open-weight)</td><td>Tops multilingual leaderboards; free to self-host, popular for non-English retrieval.</td></tr>
+    <tr><td class="hl">OpenAI text-embedding-3</td><td>OpenAI</td><td>The "safe default" — simple API, good quality, supports shrinking vector size on demand.</td></tr>
+    <tr><td class="hl">BGE-M3</td><td>Open-source (BAAI)</td><td>Free, self-hostable, supports 100+ languages — the open-source production workhorse.</td></tr>
+  </table>
+
+  <div class="callout"><strong> takeaway :</strong> the benchmark to know is called <strong>MTEB</strong> (Massive Text Embedding Benchmark) — it's the closest thing to a standard public scoreboard for "whose embeddings are best," tested across tasks like search, clustering, and classification. Like any leaderboard, treat it as a starting shortlist, not gospel — the right model always depends on your language, your data, and your budget.</div>
+
+  <div class="grid3" style="margin-top:36px;">
+    <div class="card">
+      <h4>Used for</h4>
+      <ul>
+        <li>Semantic search</li>
+        <li>RAG (letting an LLM "look up" documents)</li>
+        <li>Recommendation systems</li>
+        <li>Clustering similar documents</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Key idea: Matryoshka embeddings</h4>
+      <p>Newer models let you generate one big vector, then truncate it shorter for cheaper storage — quality degrades gracefully instead of falling off a cliff. Named after the nesting dolls.</p>
+    </div>
+    <div class="card">
+      <h4>Worth remembering</h4>
+      <p>An embedding model's whole job ends at the vector. It doesn't generate text. The Transformer is what takes embeddings and actually reasons over them — which is exactly where we're headed next.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============ TRANSFORMER ARCHITECTURE ============ -->
+<section id="transformer">
+  <div class="kicker"><span class="n">4</span>The Transformer</div>
+  <h2 class="title">Now the real machine: how does a model <span class="accent">read a whole sentence at once?</span></h2>
+  <p class="lede">Before 2017, models like RNNs read sentences one word at a time, left to right, like reading with your finger covering everything except the current word. That's slow, and it forgets things that happened many words ago. The Transformer architecture (Vaswani et al., 2017, <em>"Attention Is All You Need"</em>) threw that out entirely: <strong>let every word look at every other word, all at once.</strong></p>
+
+  <div class="feynman">
+    <p>Picture a classroom discussion instead of kids passing a note one at a time down a row. In the old way (RNN), word 1 whispers to word 2, who whispers to word 3, and by word 20 the original message has gotten garbled — like a long game of telephone. In the Transformer's way, every single word stands up and says, "here's what I think is relevant to me," and listens to every other word simultaneously, weighing some more heavily than others. No whispering down a chain. No garbling. Just one big, parallel conversation.</p>
+    <div class="who">— why "attention" beat recurrence</div>
+  </div>
+
+  <h3 style="font-family:var(--serif); font-size:1.4rem; margin:48px 0 8px; color:var(--chalk);">The big picture: encoder and decoder stacks</h3>
+  <p style="color:var(--chalk-dim); max-width:65ch; margin-bottom:20px;">This is the architecture from the original paper — and the one Jay Alamar's <em>"Illustrated Transformer"</em> made famous for building intuition. Don't worry about memorizing every box; focus on the shape of the idea.</p>
+
+  <div class="diagram-wrap">
+    <div id="transformer-arch-mount"></div>
+    <div class="cap">The full encoder–decoder Transformer — each block is repeated N times (commonly N=6)</div>
+  </div>
+
+  <div class="grid2" style="margin-top:36px;">
+    <div class="card">
+      <h4>Encoder's job</h4>
+      <p>Read the entire input sentence and build a rich representation of it — where every word's vector now also contains context from every other word.</p>
+    </div>
+    <div class="card">
+      <h4>Decoder's job</h4>
+      <p>Generate the output one token at a time, looking back both at what it has generated so far <em>and</em> at the encoder's representation of the input.</p>
+    </div>
+  </div>
+
+  <div class="tip" style="margin-top:28px;"><strong>Connecting back to session one:</strong> this is the same encoder/decoder language you already covered — translation models use both halves. Modern LLMs like GPT are <strong>decoder-only</strong> — they dropped the encoder and just kept stacking decoder blocks, trained to predict the next token. BERT-style models went the other way: <strong>encoder-only</strong>, built for understanding rather than generating.</div>
+
+  <h3 style="font-family:var(--serif); font-size:1.4rem; margin:56px 0 8px; color:var(--chalk);">Zooming into one block</h3>
+  <p style="color:var(--chalk-dim); max-width:65ch; margin-bottom:20px;">Every one of those repeated boxes contains the same two ingredients. Let's name them now — we'll unpack each one in the next two sections.</p>
+
+  <div class="diagram-wrap">
+    <div id="transformer-block-mount"></div>
+    <div class="cap">Inside a single encoder block — self-attention, then a small feed-forward network, with residual connections wrapping both</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============ SELF ATTENTION ============ -->
+<section id="attention">
+  <div class="kicker"><span class="n">5</span>Self-Attention</div>
+  <h2 class="title">The heart of it all: <span class="accent">Query, Key, and Value.</span></h2>
+  <p class="lede">This is the one mechanism that makes everything else possible. Let's build the intuition completely before touching a single piece of matrix math.</p>
+
+  <div class="feynman">
+    <p>You walk into a library looking for a book about "cats." That's your <strong>Query</strong> — what you're searching for. Every book on every shelf has a label on its spine summarizing what it's about — that's the book's <strong>Key</strong>. You scan all the spines and compare your query against each key — "how well does this book's label match what I'm looking for?" Books about cats score high. Books about tax law score low. Once you know how well each book matches, you don't just grab the best match and ignore the rest — you grab a <em>blend</em>, weighted by how relevant each book was. The actual content inside each book — what you walk away having read — is the <strong>Value</strong>. Self-attention is exactly this, done by every single word, searching across every other word in the sentence, simultaneously.</p>
+    <div class="who">— Query, Key, Value, the library analogy</div>
+  </div>
+
+  <h3 style="font-family:var(--serif); font-size:1.4rem; margin:48px 0 8px; color:var(--chalk);">Why "self"? Why does "it" need attention at all?</h3>
+  <p style="color:var(--chalk-dim); max-width:65ch;">Take this classic example sentence:</p>
+
+  <div class="diagram-wrap">
+    <div id="attention-example-mount"></div>
+    <div class="cap">The word "it" must figure out, from context, what it's actually referring to — that's what attention weights solve</div>
+  </div>
+
+  <p style="color:var(--chalk-dim); max-width:65ch; margin-top:24px;">A plain embedding can't solve this — "it" has the exact same starting vector no matter what sentence it's in. Self-attention is the mechanism that lets "it" look around the sentence and pull in context, so its vector afterward actually encodes "the cat" — not just the dictionary definition of the pronoun "it."</p>
+
+  <h3 style="font-family:var(--serif); font-size:1.4rem; margin:56px 0 8px; color:var(--chalk);">Now let's trace it on our own sentence</h3>
+  <p style="color:var(--chalk-dim); max-width:65ch; margin-bottom:20px;">Back to <span style="color:var(--gold); font-family:var(--serif); font-style:italic;">"The cat sat on the mat."</span> Watch how much attention the word <strong style="color:var(--chalk);">"sat"</strong> pays to every other word in the sentence.</p>
+
+  <div class="diagram-wrap">
+    <div id="attention-weights-mount"></div>
+    <div class="cap">Darker connection = higher attention weight. "Sat" attends most strongly to "cat" (who's doing the sitting) and "mat" (where the sitting happens)</div>
+  </div>
+
+  <h3 style="font-family:var(--serif); font-size:1.4rem; margin:56px 0 8px; color:var(--chalk);">The actual mechanics (now that the intuition is solid)</h3>
+
+  <div class="diagram-wrap">
+    <div id="qkv-math-mount"></div>
+    <div class="cap">Each word's embedding is multiplied by three different learned matrices to produce its Query, Key, and Value vectors</div>
+  </div>
+
+  <div class="grid2" style="margin-top:36px;">
+    <div class="card">
+      <h4>The four-step recipe</h4>
+      <ul>
+        <li><strong>1.</strong> Turn every word into a Query, a Key, and a Value (three separate learned projections)</li>
+        <li><strong>2.</strong> Score: compare every Query against every Key (dot product) — "how relevant is this word to me?"</li>
+        <li><strong>3.</strong> Normalize those scores into weights that sum to 1 (softmax) — turns raw scores into a proper "blend ratio"</li>
+        <li><strong>4.</strong> Blend: mix all the Values together using those weights — that blend becomes the word's new, context-aware vector</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Why "multi-head" attention?</h4>
+      <p>One attention pass might learn to track grammar (who's the subject?). Another might track reference (what does "it" point to?). Another might track tone. So Transformers run several attention "heads" in parallel — each free to specialize — then combine their outputs. It's the same sentence read several different ways at once, simultaneously, by different specialists.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============ POSITIONAL ENCODING ============ -->
+<section id="position">
+  <div class="kicker"><span class="n">6</span>Positional Encoding</div>
+  <h2 class="title">There's one thing attention forgets entirely: <span class="accent">order.</span></h2>
+  <p class="lede">Here's a sharp problem with what we just built. Self-attention compares every word to every other word — but nothing in that comparison cares <em>where</em> a word sits in the sentence. Mathematically, attention treats a sentence like a bag of words thrown in the air.</p>
+
+  <div class="diagram-wrap">
+    <div id="position-problem-mount"></div>
+    <div class="cap">Without position information, attention literally cannot tell these two sentences apart — same words, same set, different meaning</div>
+  </div>
+
+  <div class="feynman">
+    <p>Imagine handing someone a shuffled deck of flashcards, one word per card, and saying "tell me what sentence this is." They can group the cards by similarity all day long — but without numbering the cards, they can never reconstruct the order, and order is half of what a sentence means. So before we feed words into attention, we stamp a small, unique number-pattern onto every word's vector based purely on its position: 1st word, 2nd word, 3rd word... That stamp rides along with the word's meaning through the entire network.</p>
+    <div class="who">— why position has to be injected manually</div>
+  </div>
+
+  <h3 style="font-family:var(--serif); font-size:1.4rem; margin:48px 0 8px; color:var(--chalk);">The clever trick: sine and cosine waves</h3>
+  <p style="color:var(--chalk-dim); max-width:65ch;">The original Transformer paper's solution is genuinely elegant: for each position in the sentence, generate a unique pattern using sine and cosine waves of different frequencies, then simply <em>add</em> that pattern directly on top of the word's embedding vector.</p>
+
+  <div class="diagram-wrap">
+    <div id="position-encoding-mount"></div>
+    <div class="cap">Each position gets its own unique wave-fingerprint — low frequencies capture "big picture" position, high frequencies capture fine-grained position</div>
+  </div>
+
+  <div class="grid2" style="margin-top:36px;">
+    <div class="card">
+      <h4>Why waves, specifically?</h4>
+      <p>Waves repeat smoothly, so the model can learn relative relationships ("the word two positions after me") without needing a separate lookup table for every possible sentence length. It generalizes to sentences longer than anything seen in training.</p>
+    </div>
+    <div class="card">
+      <h4>Modern variants</h4>
+      <p>Many current LLMs (like LLaMA) use <strong style="color:var(--chalk);">RoPE</strong> (Rotary Position Embeddings) instead — a more refined version of the same core idea: rotate vectors based on position rather than just adding a fixed pattern. The intuition is identical; only the implementation is fancier.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============ PUTTING IT ALL TOGETHER ============ -->
+<section id="assemble">
+  <div class="kicker"><span class="n">7</span>The Full Pipeline</div>
+  <h2 class="title">One sentence, <span class="accent">start to finish.</span></h2>
+  <p class="lede">Let's run "The cat sat on the mat." through every single stage we've covered, in order, so the whole pipeline clicks as one continuous machine rather than separate disconnected ideas.</p>
+
+  <div class="diagram-wrap" style="padding-bottom:40px;">
+    <div id="full-pipeline-mount"></div>
+    <div class="cap">Click each stage to see the data transform</div>
+  </div>
+
+  <div class="grid3" style="margin-top:50px;">
+    <div class="card">
+      <h4>1 → 2: Tokens to Embeddings</h4>
+      <p>Each token ID becomes a dense vector pulled from a giant learned lookup table — pure word meaning, no sentence context yet.</p>
+    </div>
+    <div class="card">
+      <h4>2 → 3: Add Position</h4>
+      <p>A unique positional wave-pattern is added to each vector, so "first word" and "fourth word" are now distinguishable, even if they're the same word.</p>
+    </div>
+    <div class="card">
+      <h4>3 → 4: Self-Attention</h4>
+      <p>Every word's vector gets updated by blending in context from every other word, weighted by relevance — meaning now flows across the whole sentence.</p>
+    </div>
+  </div>
+
+  <div class="tip" style="margin-top:32px;"><strong>The one idea to leave the room with:</strong> a Transformer doesn't "understand" English the way we do. It's a very disciplined machine for turning words into vectors, letting those vectors negotiate meaning with each other through attention, and repeating that negotiation many times over until the final vectors are rich enough to predict — astonishingly well — what word should come next.</div>
+
+  <div class="btnrow">
+    <button class="btn" onclick="document.getElementById('hero').scrollIntoView({behavior:'smooth'})">↑ Back to the top</button>
+    <button class="btn secondary" onclick="window.open('https://platform.openai.com/tokenizer','_blank')">Open the live tokenizer</button>
+  </div>
+</section>
+
+<footer>
+  PREPARED FOR LECTURE · TOKENIZATION → EMBEDDINGS → TRANSFORMER ARCHITECTURE → SELF-ATTENTION → POSITIONAL ENCODING
+</footer>
+
+<script src="diagrams.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
