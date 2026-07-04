@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context Engineering Handbook: Architecture & Optimization</title>
+    <style>
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --accent-color: #4f46e5;
+            --accent-light: #e0e7ff;
+            --border-color: #e2e8f0;
+            --code-bg: #0f172a;
+            --code-text: #f8fafc;
+            --success-color: #16a34a;
+            --warning-color: #ca8a04;
+            --danger-color: #dc2626;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 0;
+        }
+
+        .header-banner {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+            border-bottom: 4px solid var(--accent-color);
+        }
+
+        .header-banner h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.05em;
+        }
+
+        .header-banner p {
+            font-size: 1.1rem;
+            color: #cbd5e1;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+
+        h2 {
+            font-size: 1.75rem;
+            color: #0f172a;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.5rem;
+            border-left: 5px solid var(--accent-color);
+            padding-left: 0.75rem;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            color: #1e3a8a;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        /* Model Table Styling */
+        .table-container {
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.95rem;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: #1e293b;
+            font-weight: 600;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        tr:hover {
+            background-color: #f8fafc;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .badge-blue { background-color: #dbeafe; color: #1e40af; }
+        .badge-purple { background-color: #f3e8ff; color: #6b21a8; }
+        .badge-green { background-color: #dcfce7; color: #166534; }
+
+        /* Inclusion/Exclusion Lists */
+        .list-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .list-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .list-box {
+            padding: 1.25rem;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+
+        .list-box-include {
+            border-top: 4px solid var(--success-color);
+            background-color: #f6fbf7;
+        }
+
+        .list-box-exclude {
+            border-top: 4px solid var(--danger-color);
+            background-color: #fffafb;
+        }
+
+        .list-box h4 {
+            margin-bottom: 0.75rem;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .list-box ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        .list-box li {
+            margin-bottom: 0.5rem;
+            position: relative;
+            padding-left: 1.25rem;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        .list-box-include li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--success-color);
+            font-weight: bold;
+        }
+
+        .list-box-exclude li::before {
+            content: "✕";
+            position: absolute;
+            left: 0;
+            color: var(--danger-color);
+            font-weight: bold;
+        }
+
+        /* Diagram / Callout styling */
+        .callout {
+            background-color: var(--accent-light);
+            border-left: 4px solid var(--accent-color);
+            padding: 1rem 1.25rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1.5rem 0;
+        }
+
+        .callout-title {
+            font-weight: 700;
+            color: #1e1b4b;
+            margin-bottom: 0.25rem;
+        }
+
+        .code-block {
+            background-color: var(--code-bg);
+            color: var(--code-text);
+            padding: 1.25rem;
+            border-radius: 8px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid #334155;
+        }
+
+        .visual-diagram {
+            background: #f1f5f9;
+            border: 1px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            margin: 1.5rem 0;
+        }
+
+        .diagram-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .diagram-node {
+            background: white;
+            border: 2px solid var(--accent-color);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .diagram-arrow {
+            color: var(--text-secondary);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-banner">
+        <h1>Context Engineering Handbook</h1>
+        <p>Architectural Strategies, Dynamic Assembly, and Optimization Patterns for Modern Large Language Models</p>
+    </div>
+
+    <div class="container">
+
+        <!-- Definition Section -->
+        <div class="card">
+            <h2>What is Context Engineering?</h2>
+            <p><strong>Context Engineering</strong> is the programmatic paradigm of designing, structuring, pruning, and dynamically assembling the token payloads delivered into a Large Language Model’s (LLM) context window. While <em>Prompt Engineering</em> concentrates heavily on the semantic phrasing and instruction formatting of a query, Context Engineering treats the context window as a highly critical, multi-dimensional execution environment where token utilization directly correlates with cost, latency, accuracy, and structural reasoning limits.</p>
+            <p>Effective context engineering guarantees that the underlying LLM receives high-signal, logically sound, and structurally optimized data to minimize hallucinations, prevent information attenuation, and circumvent structural processing boundaries.</p>
+        </div>
+
+        <!-- Section 1: Context Window as a Limited Resource -->
+        <div class="card">
+            <h2>1. The Context Window as a Limited Resource</h2>
+            <p>Despite massive architectural expansions in modern models, token windows remain bounded by severe operational constraints: processing latency scales with prefix length (Time-To-First-Token spikes), execution costs accumulate quadratically or lineally depending on structural layers, and attention mechanisms risk saturation when saturated with noisy data blocks.</p>
+            
+            <h3>Empirical Model Context Horizons (Current Landscape)</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Model Class</th>
+                            <th>Provider</th>
+                            <th>Total Context Window</th>
+                            <th>Architecture / Pricing Characterization</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>GPT-4o</strong></td>
+                            <td>OpenAI</td>
+                            <td><span class="badge badge-blue">128,000 Tokens</span></td>
+                            <td>Omni architecture; highly optimized multi-modal baseline. Sharp prompt caching discounts.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>GPT-4o mini</strong></td>
+                            <td>OpenAI</td>
+                            <td><span class="badge badge-blue">128,000 Tokens</span></td>
+                            <td>High-throughput, ultra-low cost ($0.15/M input). Perfect for heavily structured chunking.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>GPT-4.1 / Preview Architecture</strong></td>
+                            <td>OpenAI</td>
+                            <td><span class="badge badge-purple">1,000,000 Tokens</span></td>
+                            <td>Deep programmatic pipelines; expansive state retention for structural files.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>GPT-5</strong></td>
+                            <td>OpenAI</td>
+                            <td><span class="badge badge-purple">400,000 Tokens</span></td>
+                            <td>Hierarchical routing engine (272K Input + 128K Output). Advanced reasoning variant.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Claude 3.5 Sonnet</strong></td>
+                            <td>Anthropic</td>
+                            <td><span class="badge badge-green">200,000 Tokens</span></td>
+                            <td>Industry benchmark for multi-step programmatic workflows and complex codebases.</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Claude 3 Opus</strong></td>
+                            <td>Anthropic</td>
+                            <td><span class="badge badge-green">200,000 Tokens</span></td>
+                            <td>Premium high-fidelity deep reasoning optimized for legal and dense financial data matrices.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="list-grid">
+                <div class="list-box list-box-include">
+                    <h4>What to Explicitly Include</h4>
+                    <ul>
+                        <li>Strict system personas, architectural guards, and deterministic formatting rules.</li>
+                        <li>High-signal reference documents filtered through semantic and lexical rerankers.</li>
+                        <li>Recent conversation context turns to secure continuous narrative alignment.</li>
+                        <li>Implicit few-shot structured input/output schemas (e.g., explicit JSON structures).</li>
+                    </ul>
+                </div>
+                <div class="list-box list-box-exclude">
+                    <h4>What to Explicitly Exclude</h4>
+                    <ul>
+                        <li>Redundant markup, boilerplate HTML, structural headers, and excessive styling tags.</li>
+                        <li>Distant conversation turns unrelated to the direct current instruction block.</li>
+                        <li>Low-signal vector embeddings noise lacking direct text matches or structural correlations.</li>
+                        <li>Unused software schemas, broad environmental dependencies, and repetitive logs.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Summarisation Strategies -->
+        <div class="card">
+            <h2>2. Summarization Strategies for Long Histories</h2>
+            <p>When long-running conversational history or document pipelines threaten to exceed model boundaries, context engineers utilize automated state condensation techniques rather than relying on crude deletion rules.</p>
+            
+            <h3>Rolling / Incremental Summarization</h3>
+            <p>An architectural strategy where interactions are passed sequentially through a compression loop. As the session continues, older text blocks are systematically condensed into an "Executive Summary Block," while the most recent turns remain completely raw to guarantee exact localized phrasing accuracy.</p>
+            
+            <div class="visual-diagram">
+                <div class="diagram-flow">
+                    <div class="diagram-node">Raw Chunks 1-5</div>
+                    <div class="diagram-arrow">➔</div>
+                    <div class="diagram-node" style="background:#fef08a;">Summarizer Model</div>
+                    <div class="diagram-arrow">➔</div>
+                    <div class="diagram-node" style="background:#bbf7d0;">Condensed Executive Summary State</div>
+                </div>
+            </div>
+
+            <h3>Hierarchical (Tree-Based) Summarization</h3>
+            <p>Used for extreme data structures. Documents or conversational trees are mapped, summarized segment by segment, and then those separate summaries are recursively rolled into a structural master digest. This ensures deep background constraints are sustained without overwhelming immediate memory slots.</p>
+        </div>
+
+        <!-- Section 3: Document Stuffing Patterns -->
+        <div class="card">
+            <h2>3. Document Stuffing Patterns and Their Limits</h2>
+            <p><strong>The Stuffing Pattern:</strong> The brute-force practice of injecting full-length documents, code directories, or multiple thick legal PDFs into large context windows (like Claude 3.5 Sonnet's 200K or GPT-4.1's 1M windows) under the assumption that the underlying model will flawlessly parse everything simultaneously.</p>
+            
+            <div class="callout">
+                <div class="callout-title">Operational and Financial Trade-Off Limits</div>
+                <p>While modern models natively accept massive input blocks, document stuffing introduces three primary bottlenecks:</p>
+                <ul>
+                    <li><strong>Attention Degradation:</strong> The model's cross-attention mechanisms disperse weight evenly across all tokens, causing minor but highly specific conditional rules or remote facts to slip through without triggering.</li>
+                    <li><strong>Compounding Financial Overhead:</strong> Since input processing fees accumulate on every single API transaction, re-submitting a stuffed 150K token document over a 20-turn conversation creates massive billing inefficiencies ($3.00+/turn on premium endpoints).</li>
+                    <li><strong>Latency Surcharges:</strong> Massive context payloads lead to dramatic increases in Time-To-First-Token (TTFT), degrading the performance of real-time application states.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Section 4: Dynamic Context Assembly -->
+        <div class="card">
+            <h2>4. Dynamic Context Assembly</h2>
+            <p>Dynamic Context Assembly bypasses static prompt templates by evaluating user query runtime requirements and compiling a tailored context frame on-the-fly using advanced multi-stage data retrieval architectures.</p>
+            
+            <h3>The Multi-Stage Retrieval Pipeline</h3>
+            <p>Instead of passing raw database strings directly to the context window, production engineering frameworks rely on a decoupled processing stack:</p>
+            
+            <ol style="margin-left: 2rem; margin-bottom: 1rem; color: var(--text-secondary);">
+                <li style="margin-bottom: 0.5rem;"><strong>Dense Vector Search:</strong> Analyzes semantic concepts and captures latent contextual intents.</li>
+                <li><strong>Sparse Lexical Search (BM25):</strong> Identifies exact programmatic variables, technical serial codes, or numeric identifiers.</li>
+                <li><strong>Hybrid Fusion:</strong> Combines dense and sparse results via Reciprocal Rank Fusion (RRF).</li>
+                <li><strong>Reranking Stage:</strong> Utilizes cross-encoder neural models (e.g., Cohere Rerank) to evaluate exact context matches, whittling down 100 raw fragments into the 5 absolute high-signal entries required for insertion.</li>
+            </ol>
+
+            <div class="code-block">
+# Conceptual Dynamic Assembler Output Pattern
+{
+  "system_instructions": "Execute code generation based safely on the provided architectural schema.",
+  "runtime_context": [
+    {"source": "doc_chunk_32", "score": 0.98, "content": "Database Schema Definition..."},
+    {"source": "doc_chunk_11", "score": 0.91, "content": "Authentication Middleware Rules..."}
+  ],
+  "user_active_query": "How do I securely instantiate the database connection pool?"
+}
+            </div>
+        </div>
+
+        <!-- Section 5: Lost-in-the-Middle Problem -->
+        <div class="card">
+            <h2>5. The Lost-in-the-Middle Problem &amp; Mitigation</h2>
+            <p>Empirical evaluations reveal that Large Language Models maintain stellar retrieval and inference fidelity at the absolute beginning (primacy effect) and absolute end (recency effect) of their context windows. However, accuracy forms a severe performance dip in the center 40% to 70% zones, frequently failing to recall crucial details hidden deep inside bloated context injections.</p>
+            
+            <h3>Mitigation Blueprints</h3>
+            <div class="list-grid">
+                <div class="list-box" style="border-left: 4px solid var(--accent-color);">
+                    <h4>Context Reordering Strategies</h4>
+                    <p>Programmatically rearrange retrieved document blocks so that highly critical semantic matches are intentionally sorted into the extreme front and extreme back positions, placing lower-confidence reference buffers in the center dead-zone.</p>
+                </div>
+                <div class="list-box" style="border-left: 4px solid var(--accent-color);">
+                    <h4>Structural Prompt Reinforcement</h4>
+                    <p>Always isolate executable parameters, question blocks, and operational syntax limits at the absolute end of the prompt payload *after* all context documents have closed, forcing the attention layer to prioritize the active task execution path.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: Context Compression Techniques -->
+        <div class="card">
+            <h2>6. Context Compression Techniques</h2>
+            <p>To scale efficiency and control operating costs, engineers utilize advanced linguistic and programmatic compression frameworks before shipping payloads to API gateways.</p>
+            
+            <h3>Algorithmic Prompt Pruning (e.g., LLMLingua)</h3>
+            <p>Leverages small, high-velocity language models to evaluate the semantic perplexity of prompt content. Low-perplexity components (linguistic boilerplate, highly predictable structural syntax, filler words) are safely dropped. This process compresses prompts by up to 2x-5x while preserving over 95% of the original model reasoning fidelity.</p>
+
+            <h3>Structural &amp; Syntactic Minification</h3>
+            <p>Stripping optional spaces, converting verbose keys to single characters, optimizing payload definitions, and replacing verbose system declarations with condensed symbolic definitions.</p>
+
+            <h3>Semantic API Prompt Caching</h3>
+            <p>Utilizing native infrastructure layers (such as OpenAI and Anthropic Prompt Caching) to cache identical context prefixes (e.g., massive system guidelines or static architectural files). When subsequent calls contain matching prefixes, processing costs drop by 50% to 75% and latency scales down massively, making large context windows significantly more viable for enterprise execution loops.</p>
+        </div>
+
+    </div>
+
+</body>
+</html>
