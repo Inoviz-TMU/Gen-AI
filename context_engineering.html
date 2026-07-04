@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Context Engineering — The Art of Teaching AI What Matters</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,400&family=Inter:wght@200;300;400;500&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        night: '#0D1B2A',
+        charcoal: '#111111',
+        ivory: '#F9F5EC',
+        gold: '#D9B871',
+        sand: '#C6A878',
+      },
+      fontFamily: {
+        display: ['Cinzel', 'serif'],
+        body: ['Inter', 'sans-serif'],
+        quote: ['Cormorant Garamond', 'serif'],
+      }
+    }
+  }
+}
+</script>
+<style>
+  :root {
+    --color-night: #0D1B2A;
+    --color-sand: #C6A878;
+    --color-gold: #D9B871;
+    --color-ivory: #F9F5EC;
+    --color-charcoal: #111111;
+  }
+  * { -webkit-font-smoothing: antialiased; }
+  body { font-family: 'Inter', sans-serif; background: var(--color-night); color: var(--color-ivory); overflow-x: hidden; }
+  ::selection { background: #D9B871; color: #0D1B2A; }
+
+  /* Noise texture overlay */
+  .noise-overlay {
+    position: fixed; inset: 0; z-index: 9999; pointer-events: none; opacity: 0.08;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  }
+
+  /* Starfield */
+  .starfield {
+    background-image: radial-gradient(#F9F5EC 1px, transparent 1px), radial-gradient(#D9B871 1px, transparent 1px);
+    background-size: 50px 50px, 80px 80px;
+    background-position: 0 0, 25px 25px;
+    opacity: 0.03;
+  }
+
+  /* Scroll reveal */
+  .reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0,0,0.2,1); }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  /* Token bar animation */
+  .token-bar { transition: width 1.2s cubic-bezier(0,0,0.2,1); }
+  .token-bar.animated { width: var(--target-width) !important; }
+
+  /* Context window visualizer */
+  .ctx-block { transition: all 0.4s ease; }
+  .ctx-block:hover { transform: translateY(-2px); filter: brightness(1.2); }
+  .ctx-block.excluded { opacity: 0.15; transform: scale(0.95); }
+
+  /* Lost in middle gradient */
+  .attention-heatmap .zone { transition: all 0.5s ease; }
+  .attention-heatmap .zone:hover { transform: scaleY(1.15); filter: brightness(1.3); }
+
+  /* Glow pulse */
+  @keyframes glowPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(217,184,113,0.1); }
+    50% { box-shadow: 0 0 40px rgba(217,184,113,0.25); }
+  }
+  .glow-pulse { animation: glowPulse 3s ease-in-out infinite; }
+
+  /* Floating animation */
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .float { animation: float 4s ease-in-out infinite; }
+
+  /* Scroll indicator */
+  @keyframes scrollBounce {
+    0%, 100% { transform: translateY(0); opacity: 0.6; }
+    50% { transform: translateY(8px); opacity: 1; }
+  }
+  .scroll-indicator { animation: scrollBounce 2s ease-in-out infinite; }
+
+  /* Nav active state */
+  .nav-link { position: relative; }
+  .nav-link::after {
+    content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 1px;
+    background: #D9B871; transition: width 0.3s ease;
+  }
+  .nav-link:hover::after, .nav-link.active::after { width: 100%; }
+
+  /* Accordion */
+  .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.5s cubic-bezier(0,0,0.2,1); }
+  .accordion-content.open { max-height: 800px; }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #0D1B2A; }
+  ::-webkit-scrollbar-thumb { background: rgba(198,168,120,0.3); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(198,168,120,0.5); }
+
+  /* Tooltip */
+  .tooltip { position: relative; }
+  .tooltip .tooltip-text {
+    visibility: hidden; opacity: 0; position: absolute; bottom: 125%; left: 50%;
+    transform: translateX(-50%); background: #1a2d42; color: #F9F5EC; padding: 8px 14px;
+    border-radius: 6px; font-size: 12px; white-space: nowrap; transition: all 0.2s;
+    border: 1px solid rgba(198,168,120,0.2); z-index: 50;
+  }
+  .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+  /* Tab system */
+  .tab-btn.active { background: rgba(217,184,113,0.15); color: #D9B871; border-color: rgba(217,184,113,0.4); }
+
+  /* Compression visual */
+  @keyframes compress {
+    0% { width: 100%; }
+    50% { width: 40%; }
+    100% { width: 35%; }
+  }
+  .compress-anim { animation: compress 2s ease-in-out forwards; }
+
+  /* Connector lines */
+  .connector { position: relative; }
+  .connector::before {
+    content: ''; position: absolute; left: 15px; top: 40px; bottom: 0;
+    width: 1px; background: linear-gradient(to bottom, rgba(198,168,120,0.3), transparent);
+  }
+</style>
+</head>
+<body>
+
+<div class="noise-overlay"></div>
+
+<!-- ========== NAVIGATION ========== -->
+<nav id="mainNav" class="fixed top-0 left-0 right-0 z-50 h-20 flex items-center px-6 transition-all duration-500" style="background: rgba(13,27,42,0.8); backdrop-filter: blur(12px);">
+  <div class="max-w-7xl mx-auto w-full flex items-center justify-between">
+    <a href="#hero" class="font-display text-2xl tracking-tight text-ivory">
+      <span class="text-gold">CE</span>ngineering
+    </a>
+    <div class="hidden md:flex items-center gap-8">
+      <a href="#what" class="nav-link text-sm font-light text-ivory/70 hover:text-gold transition-colors duration-500">What</a>
+      <a href="#window" class="nav-link text-sm font-light text-ivory/70 hover:text-gold transition-colors duration-500">Window</a>
+      <a href="#summarization" class="nav-link text-sm font-light text-ivory/70 hover:text-gold transition-colors duration-500">Summarize</a>
+      <a href="#stuffing" class="nav-link text-sm font-light text-ivory/70 hover:text-gold transition-colors duration-500">Stuffing</a>
+      <a href="#dynamic" class="nav-link text-sm font-light text-ivory/70 hover:text-gold transition-colors duration-500">Dynamic</a>
+      <a href="#lost" class="nav-link text-sm font-light text-ivory/70 hover:text-gold transition-colors duration-500">Lost-in-Middle</a>
+      <a href="#compression" class="nav-link text-sm font-light text-ivory/70 hover:text-gold transition-colors duration-500">Compress</a>
+    </div>
+    <button id="mobileMenuBtn" class="md:hidden text-ivory/70">
+      <span class="iconify" data-icon="lucide:menu" data-width="24"></span>
+    </button>
+  </div>
+</nav>
+
+<!-- Mobile Menu -->
+<div id="mobileMenu" class="fixed inset-0 z-40 bg-night/95 backdrop-blur-md hidden flex-col items-center justify-center gap-8">
+  <a href="#what" class="mobile-nav text-2xl font-display text-ivory/70 hover:text-gold transition-colors">What</a>
+  <a href="#window" class="mobile-nav text-2xl font-display text-ivory/70 hover:text-gold transition-colors">Window</a>
+  <a href="#summarization" class="mobile-nav text-2xl font-display text-ivory/70 hover:text-gold transition-colors">Summarize</a>
+  <a href="#stuffing" class="mobile-nav text-2xl font-display text-ivory/70 hover:text-gold transition-colors">Stuffing</a>
+  <a href="#dynamic" class="mobile-nav text-2xl font-display text-ivory/70 hover:text-gold transition-colors">Dynamic</a>
+  <a href="#lost" class="mobile-nav text-2xl font-display text-ivory/70 hover:text-gold transition-colors">Lost-in-Middle</a>
+  <a href="#compression" class="mobile-nav text-2xl font-display text-ivory/70 hover:text-gold transition-colors">Compress</a>
+</div>
+
+<!-- ========== HERO ========== -->
+<section id="hero" class="relative min-h-screen flex flex-col justify-center items-center pt-20">
+  <div class="absolute inset-0 starfield"></div>
+  <div class="absolute inset-0" style="background: linear-gradient(to top, #0D1B2A 0%, rgba(13,27,42,0.8) 50%, transparent 100%);"></div>
+
+  <div class="relative z-10 text-center px-6 max-w-5xl mx-auto">
+    <div class="mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full border border-sand/20 bg-sand/5">
+      <span class="w-2 h-2 rounded-full bg-gold animate-pulse"></span>
+      <span class="text-xs font-medium tracking-widest uppercase text-sand">The New Frontier of AI</span>
+    </div>
+
+    <h1 class="font-display text-5xl sm:text-7xl md:text-9xl leading-none tracking-tighter mb-8">
+      <span class="block text-ivory">Context</span>
+      <span class="block bg-gradient-to-r from-gold via-sand to-gold bg-clip-text text-transparent">Engineering</span>
+    </h1>
+
+    <p class="font-quote italic text-xl sm:text-2xl md:text-3xl text-ivory/60 max-w-3xl mx-auto mb-4 leading-relaxed">
+      "The art of deciding what an AI should <em class="text-sand not-italic">remember</em>, 
+      what it should <em class="text-sand not-italic">forget</em>, 
+      and what it should <em class="text-sand not-italic">never see</em>."
+    </p>
+
+    <p class="text-sm font-light text-ivory/40 max-w-2xl mx-auto mb-12">
+      Not prompt engineering. Not RAG plumbing. The discipline of curating the information window 
+      that shapes every token a language model generates.
+    </p>
+
+    <a href="#what" class="scroll-indicator inline-flex flex-col items-center gap-2 text-ivory/30 hover:text-gold transition-colors duration-500">
+      <span class="text-xs tracking-widest uppercase">Explore</span>
+      <span class="iconify" data-icon="lucide:chevron-down" data-width="20"></span>
+    </a>
+  </div>
+</section>
+
+<!-- ========== WHAT IS CONTEXT ENGINEERING ========== -->
+<section id="what" class="relative py-32 px-6">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+      <!-- Left: Text -->
+      <div>
+        <span class="text-xs font-medium tracking-widest uppercase text-gold mb-4 block">01 — Foundation</span>
+        <h2 class="font-display text-4xl md:text-5xl text-ivory mb-8">
+          What Is Context<br>Engineering?
+        </h2>
+        <div class="space-y-6 text-ivory/70 font-light leading-relaxed">
+          <p>
+            Context engineering is the systematic practice of designing, selecting, and structuring 
+            the information that enters a language model's <strong class="text-ivory font-normal">context window</strong> 
+            — the finite memory buffer that determines everything the model can reference when generating a response.
+          </p>
+          <p>
+            While prompt engineering focuses on <em class="text-sand">how</em> you instruct the model, 
+            context engineering focuses on <em class="text-sand">what</em> the model gets to see at all. 
+            It's the difference between writing a good question and building the right library 
+            before you even ask it.
+          </p>
+          <p>
+            This matters because every model — whether <span class="text-gold">GPT-4o</span> with 128K tokens, 
+            <span class="text-gold">GPT-4.1</span> with 1M tokens, or <span class="text-gold">Claude Opus</span> 
+            with 200K tokens — has a <strong class="text-ivory font-normal">hard boundary</strong>. 
+            Exceed it, and content is simply invisible to the model.
+          </p>
+        </div>
+
+        <!-- Prompt vs Context comparison -->
+        <div class="mt-10 grid grid-cols-2 gap-4">
+          <div class="p-5 rounded-lg border border-sand/10 bg-sand/5">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="iconify text-ivory/50" data-icon="lucide:message-square" data-width="16"></span>
+              <span class="text-xs tracking-widest uppercase text-ivory/50">Prompt Engineering</span>
+            </div>
+            <p class="text-sm text-ivory/60 font-light">Crafting instructions, tone, and format for the model to follow.</p>
+          </div>
+          <div class="p-5 rounded-lg border border-gold/30 bg-gold/5 glow-pulse">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="iconify text-gold" data-icon="lucide:database" data-width="16"></span>
+              <span class="text-xs tracking-widest uppercase text-gold">Context Engineering</span>
+            </div>
+            <p class="text-sm text-ivory/70 font-light">Curating the information landscape the model operates within.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Visual -->
+      <div class="relative">
+        <div class="aspect-[4/5] rounded-lg overflow-hidden relative">
+          <img src="https://picsum.photos/seed/context-brain/800/1000.jpg" alt="Abstract neural context" class="w-full h-full object-cover opacity-40 grayscale">
+          <div class="absolute inset-0" style="background: linear-gradient(to top, #0D1B2A 10%, transparent 60%);"></div>
+          <div class="absolute inset-0" style="background: linear-gradient(135deg, rgba(217,184,113,0.1) 0%, transparent 50%);"></div>
+        </div>
+
+        <!-- Floating stat cards -->
+        <div class="absolute -bottom-6 -left-6 bg-night/90 border border-sand/20 rounded-lg p-5 backdrop-blur-md float" style="animation-delay: 0s;">
+          <div class="text-3xl font-display text-gold mb-1">1M</div>
+          <div class="text-xs text-ivory/50 tracking-wide">GPT-4.1 Max Tokens</div>
+        </div>
+        <div class="absolute top-20 -right-4 bg-night/90 border border-sand/20 rounded-lg p-5 backdrop-blur-md float" style="animation-delay: 1.5s;">
+          <div class="text-3xl font-display text-gold mb-1">200K</div>
+          <div class="text-xs text-ivory/50 tracking-wide">Claude Opus Tokens</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== DIVIDER ========== -->
+<div class="max-w-7xl mx-auto px-6">
+  <div class="h-px" style="background: linear-gradient(to right, transparent, rgba(198,168,120,0.3), transparent);"></div>
+</div>
+
+<!-- ========== CONTEXT WINDOW AS LIMITED RESOURCE ========== -->
+<section id="window" class="relative py-32 px-6">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal text-center mb-20">
+      <span class="text-xs font-medium tracking-widest uppercase text-gold mb-4 block">02 — The Constraint</span>
+      <h2 class="font-display text-4xl md:text-5xl text-ivory mb-6">Context Window as a<br>Limited Resource</h2>
+      <p class="text-ivory/60 font-light max-w-2xl mx-auto leading-relaxed">
+        Every token in your context window is a choice. What you include displaces something else. 
+        Understanding each model's capacity is the first rule of context engineering.
+      </p>
+    </div>
+
+    <!-- Model Comparison Table -->
+    <div class="reveal mb-16">
+      <div class="rounded-xl border border-sand/10 overflow-hidden" style="background: rgba(249,245,236,0.02);">
+        <div class="grid grid-cols-12 gap-0 px-6 py-4 border-b border-sand/10 text-xs tracking-widest uppercase text-ivory/40">
+          <div class="col-span-3">Model</div>
+          <div class="col-span-3">Provider</div>
+          <div class="col-span-2 text-center">Context</div>
+          <div class="col-span-2 text-center">~Words</div>
+          <div class="col-span-2 text-center">~Pages</div>
+        </div>
+
+        <!-- GPT-4o -->
+        <div class="grid grid-cols-12 gap-0 px-6 py-5 border-b border-sand/5 hover:bg-sand/5 transition-colors duration-500 items-center">
+          <div class="col-span-3 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+              <span class="iconify text-green-400" data-icon="simple-icons:openai" data-width="14"></span>
+            </div>
+            <span class="text-ivory font-normal text-sm">GPT-4o</span>
+          </div>
+          <div class="col-span-3 text-ivory/50 text-sm font-light">OpenAI</div>
+          <div class="col-span-2 text-center">
+            <span class="text-gold font-display text-lg">128K</span>
+          </div>
+          <div class="col-span-2 text-center text-ivory/60 text-sm">~96,000</div>
+          <div class="col-span-2 text-center text-ivory/60 text-sm">~320</div>
+        </div>
+
+        <!-- GPT-4o mini -->
+        <div class="grid grid-cols-12 gap-0 px-6 py-5 border-b border-sand/5 hover:bg-sand/5 transition-colors duration-500 items-center">
+          <div class="col-span-3 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+              <span class="iconify text-green-400" data-icon="simple-icons:openai" data-width="14"></span>
+            </div>
+            <span class="text-ivory font-normal text-sm">GPT-4o Mini</span>
+          </div>
+          <div class="col-span-3 text-ivory/50 text-sm font-light">OpenAI</div>
+          <div class="col-span-2 text-center">
+            <span class="text-gold font-display text-lg">128K</span>
+          </div>
+          <div class="col-span-2 text-center text-ivory/60 text-sm">~96,000</div>
+          <div class="col-span-2 text-center text-ivory/60 text-sm">~320</div>
+        </div>
+
+        <!-- GPT-4.1 -->
+        <div class="grid grid-cols-12 gap-0 px-6 py-5 border-b border-sand/5 hover:bg-sand/5 transition-colors duration-500 items-center bg-gold/5">
+          <div class="col-span-3 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+              <span class="iconify text-green-300" data-icon="simple-icons:openai" data-width="14"></span>
+            </div>
+            <span class="text-ivory font-normal text-sm">GPT-4.1</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-gold/20 text-gold tracking-wide">LARGEST</span>
+          </div>
+          <div class="col-span-3 text-ivory/50 text-sm font-light">OpenAI</div>
+          <div class="col-span-2 text-center">
+            <span class="text-gold font-display text-xl">1M</span>
+          </div>
+          <div class="col-span-2 text-center text-ivory/60 text-sm">~750,000</div>
+          <div class="col-span-2 text-center text-ivory/60 text-sm">~2,500</div>
+        </div>
+
+        <!-- GPT-5 -->
+        <div class="grid grid-cols-12 gap-0 px-6 py-5 border-b border-sand/5 hover:bg-sand/5 transition-colors duration-500 items-center">
+          <div class="col-span-3 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+              <span class="iconify text-green-400" data-icon="simple-icons:openai" data-width="14"></span>
+            </div>
+            <span class="text-ivory font-normal text-sm">GPT-5</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full border border-ivory/20 text-ivory/40 tracking-wide">PROJECTED</span>
+          </div>
+          <div class="col-span-3 text-ivory/50 text-sm font-light">OpenAI</div>
+          <div class="col-span-2 text-center">
+            <span class="text-gold font-display text-lg">2M+</span>
+          </div>
+          <div class="col-span-2 text-center text-ivory/60 text-sm">~1.5M+</div>
+          <div class="col-span-2 text-center text-ivory/60 text-sm">~5,000+</div>
+        </div>
+
+        <!-- Claude Sonnet -->
+        <div class="grid grid-cols-12 gap-0 px-6 py-5 border-b border-sand/5 hover:bg-sand/5 transition-colors duration-500 items-center">
+          <div class="col-span-3 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center">
+              <span class="iconify text-orange-400" data-icon="simple-icons:anthropic" data-width="14"></span>
+            </div>
+            <span class="text-ivory font-normal text-sm">Claude Sonnet 4</span>
+          </div>
+          <div class="col-span-3 text-ivory/50 text-sm font-light">Anthropic</div>
+          <div class="col-span-2 text-center">
+            <span class="text-gold font-display text-lg">200K</span>
+          </div>
+          <div class="col-span-2 text-center text-ivory/60 text-sm">~150,000</div>
+          <div class="col-span-2 text-center text-ivory/60 text-sm">~500</div>
+        </div>
+
+        <!-- Claude Opus -->
+        <div class="grid grid-cols-12 gap-0 px-6 py-5 hover:bg-sand/5 transition-colors duration-500 items-center">
+          <div class="col-span-3 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center">
+              <span class="iconify text-orange-400" data-icon="simple-icons:anthropic" data-width="14"></span>
+            </div>
+            <span class="text-ivory font-normal text-sm">Claude Opus 4</span>
+          </div>
+          <div class="col-span-3 text-ivory/50 text-sm font-light">Anthropic</div>
+          <div class="col-span-2 text-center">
+            <span class="text-gold font-display text-lg">200K</span>
+          </div>
+          <div class="col-span-2 text-center text-ivory/60 text-sm">~150,000</div>
+          <div class="col-span-2 text-center text-ivory/60 text-sm">~500</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Visual Context Window Simulator -->
+    <div class="reveal">
+      <h3 class="font-display text-2xl text-ivory mb-6 text-center">Interactive: What Fits in 128K Tokens?</h3>
+      <p class="text-center text-sm text-ivory/40 mb-8">Click blocks to include or exclude them. Watch the usage meter.</p>
+
+      <div class="max-w-4xl mx-auto">
+        <!-- Usage meter -->
+        <div class="mb-6 flex items-center gap-4">
+          <span class="text-xs text-ivory/50 w-12">0%</span>
+          <div class="flex-1 h-3 rounded-full bg-ivory/5 overflow-hidden">
+            <div id="usageBar" class="h-full rounded-full transition-all duration-500 ease-out" style="width: 0%; background: linear-gradient(to right, #D9B871, #C6A878);"></div>
+          </div>
+          <span id="usagePercent" class="text-xs text-ivory/50 w-12 text-right">0%</span>
+        </div>
+        <div id="tokenCount" class="text-center text-sm text-ivory/40 mb-8">0 / 128,000 tokens used</div>
+
+        <!-- Context blocks -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="contextBlocks">
+          <div class="ctx-block cursor-pointer rounded-lg p-4 border border-sand/20 bg-sand/5" data-tokens="5000" data-included="true" onclick="toggleBlock(this)">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="iconify text-gold" data-icon="lucide:file-text" data-width="14"></span>
+              <span class="text-xs text-gold">System Prompt</span>
+            </div>
+            <div class="text-lg font-display text-ivory">5K</div>
+            <div class="text-[10px] text-ivory/40">tokens</div>
+          </div>
+
+          <div class="ctx-block cursor-pointer rounded-lg p-4 border border-sand/20 bg-sand/5" data-tokens="12000" data-included="true" onclick="toggleBlock(this)">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="iconify text-gold" data-icon="lucide:book-open" data-width="14"></span>
+              <span class="text-xs text-gold">Code Docs</span>
+            </div>
+            <div class="text-lg font-display text-ivory">12K</div>
+            <div class="text-[10px] text-ivory/40">tokens</div>
+          </div>
+
+          <div class="ctx-block cursor-pointer rounded-lg p-4 border border-sand/20 bg-sand/5" data-tokens="35000" data-included="true" onclick="toggleBlock(this)">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="iconify text-gold" data-icon="lucide:history" data-width="14"></span>
+              <span class="text-xs text-gold">Chat History</span>
+            </div>
+            <div class="text-lg font-display text-ivory">35K</div>
+            <div class="text-[10px] text-ivory/40">tokens</div>
+          </div>
+
+          <div class="ctx-block cursor-pointer rounded-lg p-4 border border-sand/20 bg-sand/5" data-tokens="20000" data-included="true" onclick="toggleBlock(this)">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="iconify text-gold" data-icon="lucide:database" data-width="14"></span>
+              <span class="text-xs text-gold">RAG Results</span>
+            </div>
+            <div class="text-lg font-display text-ivory">20K</div>
+            <div class="text-[10px] text-ivory/40">tokens</div>
+          </div>
+
+          <div class="ctx-block cursor-pointer rounded-lg p-4 border border-sand/20 bg-sand/5" data-tokens="45000" data-included="true" onclick="toggleBlock(this)">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="iconify text-gold" data-icon="lucide:file-code" data-width="14"></span>
+              <span class="text-xs text-gold">Source Files</span>
+            </div>
+            <div class="text-lg font-display text-ivory">45K</div>
+            <div class="text-[10px] text-ivory/40">tokens</div>
+          </div>
+
+          <div class="ctx-block cursor-pointer rounded-lg p-4 border border-sand/20 bg-sand/5" data-tokens="8000" data-included="true" onclick="toggleBlock(this)">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="iconify text-gold" data-icon="lucide:shield" data-width="14"></span>
+              <span class="text-xs text-gold">Guardrails</span>
+            </div>
+            <div class="text-lg font-display text-ivory">8K</div>
+            <div class="text-[10px] text-ivory/40">tokens</div>
+          </div>
+
+          <div class="ctx-block cursor-pointer rounded-lg p-4 border border-red-500/20 bg-red-500/5 excluded" data-tokens="15000" data-included="false" onclick="toggleBlock(this)">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="iconify text-red-400/50" data-icon="lucide:file-x" data-width="14"></span>
+              <span class="text-xs text-red-400/50">Old Logs</span>
+            </div>
+            <div class="text-lg font-display text-ivory/30">15K</div>
+            <div class="text-[10px] text-ivory/20">excluded</div>
+          </div>
+
+          <div class="ctx-block cursor-pointer rounded-lg p-4 border border-red-500/20 bg-red-500/5 excluded" data-tokens="25000" data-included="false" onclick="toggleBlock(this)">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="iconify text-red-400/50" data-icon="lucide:file-x" data-width="14"></span>
+              <span class="text-xs text-red-400/50">Cached Docs</span>
+            </div>
+            <div class="text-lg font-display text-ivory/30">25K</div>
+            <div class="text-[10px] text-ivory/20">excluded</div>
+          </div>
+        </div>
+
+        <p class="text-center text-xs text-ivory/30 mt-6">Click any block to toggle inclusion. Current model: GPT-4o (128K) — switch to see GPT-4.1's 1M capacity makes almost everything fit.</p>
+      </div>
+    </div>
+
+    <!-- Include / Exclude Decision Framework -->
+    <div class="reveal mt-20 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+      <div class="p-8 rounded-xl border border-green-500/20 bg-green-500/5">
+        <div class="flex items-center gap-3 mb-6">
+          <span class="iconify text-green-400" data-icon="lucide:check-circle" data-width="20"></span>
+          <h4 class="font-display text-xl text-ivory">Include</h4>
+        </div>
+        <ul class="space-y-3">
+          <li class="flex items-start gap-3 text-sm text-ivory/70 font-light"><span class="text-green-400 mt-0.5">→</span>Task-relevant instructions and constraints</li>
+          <li class="flex items-start gap-3 text-sm text-ivory/70 font-light"><span class="text-green-400 mt-0.5">→</span>Recent conversation turns (highest value)</li>
+          <li class="flex items-start gap-3 text-sm text-ivory/70 font-light"><span class="text-green-400 mt-0.5">→</span>Retrieved passages directly matching the query</li>
+          <li class="flex items-start gap-3 text-sm text-ivory/70 font-light"><span class="text-green-400 mt-0.5">→</span>Output format examples and schemas</li>
+          <li class="flex items-start gap-3 text-sm text-ivory/70 font-light"><span class="text-green-400 mt-0.5">→</span>Domain-specific definitions the model may not know</li>
+        </ul>
+      </div>
+      <div class="p-8 rounded-xl border border-red-500/20 bg-red-500/5">
+        <div class="flex items-center gap-3 mb-6">
+          <span class="iconify text-red-400" data-icon="lucide:x-circle" data-width="20"></span>
+          <h4 class="font-display text-xl text-ivory">Exclude</h4>
+        </div>
+        <ul class="space-y-3">
+          <li class="flex items-start gap-3 text-sm text-ivory/70 font-light"><span class="text-red-400 mt-0.5">→</span>Redundant or duplicate information</li>
+          <li class="flex items-start gap-3 text-sm text-ivory/70 font-light"><span class="text-red-400 mt-0.5">→</span>Old conversation turns beyond useful recall</li>
+          <li class="flex items-start gap-3 text-sm text-ivory/70 font-light"><span class="text-red-400 mt-0.5">→</span>Low-relevance RAG chunks (cosine < 0.7)</li>
+          <li class="flex items-start gap-3 text-sm text-ivory/70 font-light"><span class="text-red-400 mt-0.5">→</span>Information the model already knows well</li>
+          <li class="flex items-start gap-3 text-sm text-ivory/70 font-light"><span class="text-red-400 mt-0.5">→</span>Verbose metadata and boilerplate text</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== DIVIDER ========== -->
+<div class="max-w-7xl mx-auto px-6">
+  <div class="h-px" style="background: linear-gradient(to right, transparent, rgba(198,168,120,0.3), transparent);"></div>
+</div>
+
+<!-- ========== SUMMARIZATION STRATEGIES ========== -->
+<section id="summarization" class="relative py-32 px-6">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal text-center mb-20">
+      <span class="text-xs font-medium tracking-widest uppercase text-gold mb-4 block">03 — Compression</span>
+      <h2 class="font-display text-4xl md:text-5xl text-ivory mb-6">Summarisation Strategies<br>for Long Histories</h2>
+      <p class="text-ivory/60 font-light max-w-2xl mx-auto leading-relaxed">
+        A 50-turn conversation at 2K tokens per turn = 100K tokens. That's the entire GPT-4o window gone. 
+        Summarisation is how you compress the past without losing what matters.
+      </p>
+    </div>
+
+    <!-- Strategy Cards -->
+    <div class="reveal grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+      <!-- Rolling Summary -->
+      <div class="group p-8 rounded-xl border border-sand/10 hover:border-sand/30 bg-ivory/[0.02] hover:bg-ivory/[0.04] transition-all duration-500">
+        <div class="w-12 h-12 rounded-full border border-sand/20 flex items-center justify-center mb-6 group-hover:border-gold transition-colors duration-500">
+          <span class="iconify text-sand group-hover:text-gold transition-colors duration-500" data-icon="lucide:refresh-cw" data-width="20"></span>
+        </div>
+        <h3 class="font-display text-xl text-ivory mb-4">Rolling Summary</h3>
+        <p class="text-sm text-ivory/60 font-light leading-relaxed mb-4">
+          Maintain a running summary that gets updated every N turns. Old details fade, 
+          but key decisions and context persist.
+        </p>
+        <div class="p-3 rounded bg-night/50 border border-sand/10 text-xs text-ivory/50 font-mono leading-relaxed">
+          <span class="text-gold">Turn 1-5:</span> Full messages<br>
+          <span class="text-gold">Turn 6-10:</span> Summary of 1-5 + Full 6-10<br>
+          <span class="text-gold">Turn 11-15:</span> Summary of 1-10 + Full 11-15
+        </div>
+        <div class="mt-4 flex items-center gap-2 text-xs text-ivory/30">
+          <span class="iconify" data-icon="lucide:gauge" data-width="12"></span>
+          <span>Reduces 100K → ~15K tokens</span>
+        </div>
+      </div>
+
+      <!-- Sliding Window + Summary -->
+      <div class="group p-8 rounded-xl border border-sand/10 hover:border-sand/30 bg-ivory/[0.02] hover:bg-ivory/[0.04] transition-all duration-500">
+        <div class="w-12 h-12 rounded-full border border-sand/20 flex items-center justify-center mb-6 group-hover:border-gold transition-colors duration-500">
+          <span class="iconify text-sand group-hover:text-gold transition-colors duration-500" data-icon="lucide:layers" data-width="20"></span>
+        </div>
+        <h3 class="font-display text-xl text-ivory mb-4">Sliding Window + Summary</h3>
+        <p class="text-sm text-ivory/60 font-light leading-relaxed mb-4">
+          Keep the last K turns verbatim for conversational nuance, plus a summary of everything before. 
+          Best of both worlds.
+        </p>
+        <div class="p-3 rounded bg-night/50 border border-sand/10 text-xs text-ivory/50 font-mono leading-relaxed">
+          <span class="text-gold">[Summary]</span> Condensed turns 1-40<br>
+          <span class="text-gold">[Full]</span> Turns 41-50 (verbatim)<br>
+          <span class="text-gold">[System]</span> Current task prompt
+        </div>
+        <div class="mt-4 flex items-center gap-2 text-xs text-ivory/30">
+          <span class="iconify" data-icon="lucide:gauge" data-width="12"></span>
+          <span>Reduces 100K → ~25K tokens</span>
+        </div>
+      </div>
+
+      <!-- Topic-Based Clustering -->
+      <div class="group p-8 rounded-xl border border-sand/10 hover:border-sand/30 bg-ivory/[0.02] hover:bg-ivory/[0.04] transition-all duration-500">
+        <div class="w-12 h-12 rounded-full border border-sand/20 flex items-center justify-center mb-6 group-hover:border-gold transition-colors duration-500">
+          <span class="iconify text-sand group-hover:text-gold transition-colors duration-500" data-icon="lucide:git-branch" data-width="20"></span>
+        </div>
+        <h3 class="font-display text-xl text-ivory mb-4">Topic-Based Clustering</h3>
+        <p class="text-sm text-ivory/60 font-light leading-relaxed mb-4">
+          Group conversation into topics. Summarise completed topics fully, 
+          keep active topic verbatim. Discard off-topic digressions.
+        </p>
+        <div class="p-3 rounded bg-night/50 border border-sand/10 text-xs text-ivory/50 font-mono leading-relaxed">
+          <span class="text-green-400">✓ Topic A:</span> "Auth flow" (done, summarized)<br>
+          <span class="text-gold">→ Topic B:</span> "Payment API" (active, full)<br>
+          <span class="text-red-400">✗ Digression:</span> "Lunch plans" (dropped)
+        </div>
+        <div class="mt-4 flex items-center gap-2 text-xs text-ivory/30">
+          <span class="iconify" data-icon="lucide:gauge" data-width="12"></span>
+          <span>Reduces 100K → ~20K tokens</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model-specific notes -->
+    <div class="reveal max-w-4xl mx-auto">
+      <div class="p-6 rounded-xl border border-sand/10 bg-ivory/[0.02]">
+        <div class="flex items-start gap-4">
+          <span class="iconify text-gold flex-shrink-0 mt-1" data-icon="lucide:lightbulb" data-width="18"></span>
+          <div>
+            <h4 class="font-display text-lg text-ivory mb-2">Model-Specific Insight</h4>
+            <p class="text-sm text-ivory/60 font-light leading-relaxed">
+              <strong class="text-ivory font-normal">GPT-4.1's 1M token window</strong> changes the math dramatically — you could fit ~500 pages of conversation 
+              verbatim. But even there, summarisation improves <em class="text-sand">quality</em>, not just capacity. 
+              Models perform better on focused, relevant context than on exhaustive dumps. 
+              <strong class="text-ivory font-normal">Claude Opus</strong> excels at following complex instructions within its 200K window, 
+              making it especially sensitive to noise — clean context matters more than large context. 
+              <strong class="text-ivory font-normal">GPT-4o Mini</strong>, with its smaller effective reasoning capacity, 
+              benefits most from aggressive summarisation.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== DIVIDER ========== -->
+<div class="max-w-7xl mx-auto px-6">
+  <div class="h-px" style="background: linear-gradient(to right, transparent, rgba(198,168,120,0.3), transparent);"></div>
+</div>
+
+<!-- ========== DOCUMENT STUFFING ========== -->
+<section id="stuffing" class="relative py-32 px-6">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal grid grid-cols-1 md:grid-cols-2 gap-16 items-start">
+      <!-- Left -->
+      <div>
+        <span class="text-xs font-medium tracking-widest uppercase text-gold mb-4 block">04 — Anti-Pattern</span>
+        <h2 class="font-display text-4xl md:text-5xl text-ivory mb-8">Document Stuffing<br>Patterns & Limits</h2>
+        <div class="space-y-6 text-ivory/70 font-light leading-relaxed">
+          <p>
+            Document stuffing is the naive approach: dump everything into the context window and hope 
+            the model figures it out. It's the most common mistake in context engineering.
+          </p>
+          <p>
+            With <span class="text-gold">GPT-4o's 128K</span> window, people stuff all 128K. 
+            With <span class="text-gold">GPT-4.1's 1M</span> window, they stuff all 1M. 
+            The result? Degraded performance, slower inference, and higher cost.
+          </p>
+        </div>
+
+        <!-- Stuffing patterns accordion -->
+        <div class="mt-10 space-y-3">
+          <div class="border border-sand/10 rounded-lg overflow-hidden">
+            <button class="accordion-btn w-full px-5 py-4 flex items-center justify-between text-left hover:bg-sand/5 transition-colors" onclick="toggleAccordion(this)">
+              <span class="text-sm text-ivory/80 font-normal">Full-Document Dump</span>
+              <span class="iconify text-ivory/30 transition-transform duration-300" data-icon="lucide:chevron-down" data-width="16"></span>
+            </button>
+            <div class="accordion-content px-5 pb-4">
+              <p class="text-sm text-ivory/50 font-light leading-relaxed">Entire PDFs, codebases, or datasets dumped wholesale. Works for small docs, fails catastrophically at scale. Even GPT-4.1's 1M window won't save you — the model can't reason over 750K words effectively.</p>
+            </div>
+          </div>
+          <div class="border border-sand/10 rounded-lg overflow-hidden">
+            <button class="accordion-btn w-full px-5 py-4 flex items-center justify-between text-left hover:bg-sand/5 transition-colors" onclick="toggleAccordion(this)">
+              <span class="text-sm text-ivory/80 font-normal">Redundant Re-stuffing</span>
+              <span class="iconify text-ivory/30 transition-transform duration-300" data-icon="lucide:chevron-down" data-width="16"></span>
+            </button>
+            <div class="accordion-content px-5 pb-4">
+              <p class="text-sm text-ivory/50 font-light leading-relaxed">Same reference material re-inserted every turn. Common in chat interfaces that re-send the full context each API call. Wastes tokens and can confuse the model about what's current.</p>
+            </div>
+          </div>
+          <div class="border border-sand/10 rounded-lg overflow-hidden">
+            <button class="accordion-btn w-full px-5 py-4 flex items-center justify-between text-left hover:bg-sand/5 transition-colors" onclick="toggleAccordion(this)">
+              <span class="text-sm text-ivory/80 font-normal">Priority-Free Stacking</span>
+              <span class="iconify text-ivory/30 transition-transform duration-300" data-icon="lucide:chevron-down" data-width="16"></span>
+            </button>
+            <div class="accordion-content px-5 pb-4">
+              <p class="text-sm text-ivory/50 font-light leading-relaxed">All context given equal weight — no signal about what's critical vs. supplementary. The model treats your 3-line instruction the same as a 50-page contract. Explicit priority markers ("IMPORTANT:", "CRITICAL:") help, but better structure solves this fundamentally.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Visual comparison -->
+      <div class="space-y-6">
+        <div class="p-6 rounded-xl border border-red-500/20 bg-red-500/5">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="iconify text-red-400" data-icon="lucide:x" data-width="16"></span>
+            <span class="text-xs tracking-widest uppercase text-red-400">Stuffing Approach</span>
+          </div>
+          <div class="space-y-2">
+            <div class="h-8 rounded bg-red-500/10 border border-red-500/20 flex items-center px-3 text-xs text-red-400/60">System prompt (500 tokens)</div>
+            <div class="h-20 rounded bg-red-500/10 border border-red-500/20 flex items-center px-3 text-xs text-red-400/60">Full doc 1 — all 45K tokens</div>
+            <div class="h-20 rounded bg-red-500/10 border border-red-500/20 flex items-center px-3 text-xs text-red-400/60">Full doc 2 — all 38K tokens</div>
+            <div class="h-16 rounded bg-red-500/10 border border-red-500/20 flex items-center px-3 text-xs text-red-400/60">Full doc 3 — all 30K tokens</div>
+            <div class="h-8 rounded bg-red-500/10 border border-red-500/20 flex items-center px-3 text-xs text-red-400/60">Chat history (14.5K tokens)</div>
+          </div>
+          <div class="mt-4 flex items-center justify-between text-xs">
+            <span class="text-red-400/60">128K / 128K used</span>
+            <span class="text-red-400">100% FULL</span>
+          </div>
+          <div class="mt-2 h-2 rounded-full bg-ivory/5 overflow-hidden">
+            <div class="h-full w-full rounded-full bg-red-500/50"></div>
+          </div>
+        </div>
+
+        <div class="p-6 rounded-xl border border-green-500/20 bg-green-500/5">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="iconify text-green-400" data-icon="lucide:check" data-width="16"></span>
+            <span class="text-xs tracking-widest uppercase text-green-400">Engineered Approach</span>
+          </div>
+          <div class="space-y-2">
+            <div class="h-8 rounded bg-green-500/10 border border-green-500/20 flex items-center px-3 text-xs text-green-400/60">System prompt with priorities (800 tokens)</div>
+            <div class="h-10 rounded bg-green-500/10 border border-green-500/20 flex items-center px-3 text-xs text-green-400/60">Relevant section from doc 1 (2K tokens)</div>
+            <div class="h-10 rounded bg-green-500/10 border border-green-500/20 flex items-center px-3 text-xs text-green-400/60">Relevant section from doc 2 (1.5K tokens)</div>
+            <div class="h-6 rounded bg-green-500/10 border border-green-500/20 flex items-center px-3 text-xs text-green-400/60">Doc 3 summary (500 tokens)</div>
+            <div class="h-8 rounded bg-green-500/10 border border-green-500/20 flex items-center px-3 text-xs text-green-400/60">Recent 5 turns (6K tokens)</div>
+            <div class="h-6 rounded bg-green-500/10 border border-green-500/20 flex items-center px-3 text-xs text-green-400/60">Earlier summary (2K tokens)</div>
+          </div>
+          <div class="mt-4 flex items-center justify-between text-xs">
+            <span class="text-green-400/60">13.3K / 128K used</span>
+            <span class="text-green-400">10% USED</span>
+          </div>
+          <div class="mt-2 h-2 rounded-full bg-ivory/5 overflow-hidden">
+            <div class="h-full rounded-full bg-green-500/50" style="width: 10%;"></div>
+          </div>
+        </div>
+
+        <div class="p-5 rounded-lg border border-sand/10 bg-ivory/[0.02]">
+          <p class="text-xs text-ivory/40 font-light leading-relaxed">
+            <span class="text-gold">Key insight:</span> The engineered approach uses 10% of the window but achieves better results because every token is relevant, prioritized, and structured. Claude Opus is particularly good at leveraging well-structured sparse context — it performs worse with dense stuffing than with curated excerpts.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== DIVIDER ========== -->
+<div class="max-w-7xl mx-auto px-6">
+  <div class="h-px" style="background: linear-gradient(to right, transparent, rgba(198,168,120,0.3), transparent);"></div>
+</div>
+
+<!-- ========== DYNAMIC CONTEXT ASSEMBLY ========== -->
+<section id="dynamic" class="relative py-32 px-6">
+  <div class="absolute inset-0 starfield"></div>
+  <div class="max-w-7xl mx-auto relative z-10">
+    <div class="reveal text-center mb-20">
+      <span class="text-xs font-medium tracking-widest uppercase text-gold mb-4 block">05 — Intelligence</span>
+      <h2 class="font-display text-4xl md:text-5xl text-ivory mb-6">Dynamic Context<br>Assembly</h2>
+      <p class="text-ivory/60 font-light max-w-2xl mx-auto leading-relaxed">
+        Instead of pre-loading a fixed context, dynamically select and compose relevant content 
+        at runtime based on the user's query, conversation state, and task requirements.
+      </p>
+    </div>
+
+    <!-- Pipeline Visual -->
+    <div class="reveal max-w-5xl mx-auto mb-16">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+        <!-- Step 1 -->
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-full border border-gold/30 bg-gold/5 flex items-center justify-center mx-auto mb-3">
+            <span class="iconify text-gold" data-icon="lucide:message-circle" data-width="24"></span>
+          </div>
+          <div class="text-xs font-display text-ivory mb-1">Query</div>
+          <div class="text-[10px] text-ivory/40">User input arrives</div>
+        </div>
+        <div class="hidden md:flex items-center justify-center">
+          <span class="iconify text-sand/30" data-icon="lucide:arrow-right" data-width="20"></span>
+        </div>
+        <!-- Step 2 -->
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-full border border-gold/30 bg-gold/5 flex items-center justify-center mx-auto mb-3">
+            <span class="iconify text-gold" data-icon="lucide:search" data-width="24"></span>
+          </div>
+          <div class="text-xs font-display text-ivory mb-1">Retrieve</div>
+          <div class="text-[10px] text-ivory/40">RAG / semantic search</div>
+        </div>
+        <div class="hidden md:flex items-center justify-center">
+          <span class="iconify text-sand/30" data-icon="lucide:arrow-right" data-width="20"></span>
+        </div>
+        <!-- Step 3 -->
+        <div class="text-center">
+          <div class="w-16 h-16 rounded-full border border-gold/30 bg-gold/5 flex items-center justify-center mx-auto mb-3">
+            <span class="iconify text-gold" data-icon="lucide:layout-template" data-width="24"></span>
+          </div>
+          <div class="text-xs font-display text-ivory mb-1">Assemble</div>
+          <div class="text-[10px] text-ivory/40">Rank, prune, compose</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Techniques Grid -->
+    <div class="reveal grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+      <div class="connector space-y-8">
+        <!-- Technique 1 -->
+        <div class="flex gap-5">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full border border-sand/30 flex items-center justify-center">
+            <span class="font-display text-sm text-gold">1</span>
+          </div>
+          <div>
+            <h4 class="font-display text-lg text-ivory mb-2">Semantic Routing</h4>
+            <p class="text-sm text-ivory/60 font-light leading-relaxed">
+              Classify the query type first, then load different context profiles. A code question gets API docs; 
+              a billing question gets account data. No single context serves all queries.
+            </p>
+            <div class="mt-3 p-3 rounded bg-night/50 border border-sand/10 text-xs text-ivory/40 font-mono">
+              query_type = classify(user_msg)<br>
+              context = load_profile(query_type)<br>
+              <span class="text-gold"># "code" → api_docs + type_defs<br># "billing" → account + invoices</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Technique 2 -->
+        <div class="flex gap-5">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full border border-sand/30 flex items-center justify-center">
+            <span class="font-display text-sm text-gold">2</span>
+          </div>
+          <div>
+            <h4 class="font-display text-lg text-ivory mb-2">Relevance Thresholding</h4>
+            <p class="text-sm text-ivory/60 font-light leading-relaxed">
+              Set a minimum similarity score for RAG results. Chunks below 0.7 cosine similarity are excluded 
+              even if the window has room. Quality over coverage.
+            </p>
+          </div>
+        </div>
+
+        <!-- Technique 3 -->
+        <div class="flex gap-5">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full border border-sand/30 flex items-center justify-center">
+            <span class="font-display text-sm text-gold">3</span>
+          </div>
+          <div>
+            <h4 class="font-display text-lg text-ivory mb-2">Recency-Weighted Selection</h4>
+            <p class="text-sm text-ivory/60 font-light leading-relaxed">
+              Boost retrieval scores for recently accessed or modified documents. 
+              If the user just edited a file, that file's chunks get priority over semantically similar but stale content.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector space-y-8">
+        <!-- Technique 4 -->
+        <div class="flex gap-5">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full border border-sand/30 flex items-center justify-center">
+            <span class="font-display text-sm text-gold">4</span>
+          </div>
+          <div>
+            <h4 class="font-display text-lg text-ivory mb-2">Token Budget Allocation</h4>
+            <p class="text-sm text-ivory/60 font-light leading-relaxed">
+              Pre-allocate your token budget: 10% system, 5% instructions, 40% RAG, 30% history, 15% buffer. 
+              Each source gets capped, preventing any one component from dominating.
+            </p>
+            <div class="mt-3 flex rounded-full overflow-hidden h-6 border border-sand/10">
+              <div class="bg-gold/30 flex items-center justify-center text-[10px] text-ivory/70" style="width:10%">Sys</div>
+              <div class="bg-sand/30 flex items-center justify-center text-[10px] text-ivory/70" style="width:5%">Inst</div>
+              <div class="bg-gold/50 flex items-center justify-center text-[10px] text-ivory/70" style="width:40%">RAG</div>
+              <div class="bg-sand/50 flex items-center justify-center text-[10px] text-ivory/70" style="width:30%">Hist</div>
+              <div class="bg-ivory/10 flex items-center justify-center text-[10px] text-ivory/50" style="width:15%">Buf</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Technique 5 -->
+        <div class="flex gap-5">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full border border-sand/30 flex items-center justify-center">
+            <span class="font-display text-sm text-gold">5</span>
+          </div>
+          <div>
+            <h4 class="font-display text-lg text-ivory mb-2">Contextual Caching Hints</h4>
+            <p class="text-sm text-ivory/60 font-light leading-relaxed">
+              With Anthropic's prompt caching, structure your context so static portions 
+              (system prompt, reference docs) can be cached between turns. This doesn't save tokens 
+              but cuts latency and cost by ~90% for cached portions.
+            </p>
+          </div>
+        </div>
+
+        <!-- Technique 6 -->
+        <div class="flex gap-5">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full border border-sand/30 flex items-center justify-center">
+            <span class="font-display text-sm text-gold">6</span>
+          </div>
+          <div>
+            <h4 class="font-display text-lg text-ivory mb-2">Adaptive Context Sizing</h4>
+            <p class="text-sm text-ivory/60 font-light leading-relaxed">
+              Simple queries get minimal context; complex ones get the full budget. 
+              Estimate complexity first, then scale context accordingly.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model comparison for dynamic assembly -->
+    <div class="reveal mt-16 max-w-4xl mx-auto p-6 rounded-xl border border-sand/10 bg-ivory/[0.02]">
+      <h4 class="font-display text-lg text-ivory mb-4 text-center">Dynamic Assembly by Model</h4>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="text-center p-4 rounded-lg bg-night/50">
+          <div class="text-sm font-display text-ivory mb-2">GPT-4o Mini</div>
+          <div class="text-[10px] text-ivory/40 leading-relaxed">Keep it simple. 2-3 RAG chunks max. Aggressive filtering. This model gets confused by too many sources.</div>
+        </div>
+        <div class="text-center p-4 rounded-lg bg-night/50">
+          <div class="text-sm font-display text-ivory mb-2">GPT-4o</div>
+          <div class="text-[10px] text-ivory/40 leading-relaxed">5-10 RAG chunks work well. Good at cross-referencing. Use structured XML tags for organization.</div>
+        </div>
+        <div class="text-center p-4 rounded-lg bg-night/50">
+          <div class="text-sm font-display text-gold mb-2">GPT-4.1</div>
+          <div class="text-[10px] text-ivory/40 leading-relaxed">Can handle 20+ chunks effectively. Excels at finding needles in haystacks. Best for deep research tasks.</div>
+        </div>
+        <div class="text-center p-4 rounded-lg bg-night/50">
+          <div class="text-sm font-display text-ivory mb-2">Claude Opus</div>
+          <div class="text-[10px] text-ivory/40 leading-relaxed">Outstanding with structured XML context. Follows complex assembly instructions precisely. Benefits most from clean formatting.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== DIVIDER ========== -->
+<div class="max-w-7xl mx-auto px-6">
+  <div class="h-px" style="background: linear-gradient(to right, transparent, rgba(198,168,120,0.3), transparent);"></div>
+</div>
+
+<!-- ========== LOST IN THE MIDDLE ========== -->
+<section id="lost" class="relative py-32 px-6">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal text-center mb-20">
+      <span class="text-xs font-medium tracking-widest uppercase text-gold mb-4 block">06 — Cognitive Bias</span>
+      <h2 class="font-display text-4xl md:text-5xl text-ivory mb-6">Lost-in-the-Middle<br>Problem & Mitigation</h2>
+      <p class="text-ivory/60 font-light max-w-2xl mx-auto leading-relaxed">
+        Language models attend strongly to the <em class="text-sand">beginning</em> and <em class="text-sand">end</em> of context, 
+        but significantly less to information buried in the middle. This isn't a bug — it's an architectural property 
+        of transformer attention.
+      </p>
+    </div>
+
+    <!-- Attention Heatmap Visual -->
+    <div class="reveal max-w-4xl mx-auto mb-16">
+      <h3 class="font-display text-xl text-ivory mb-2 text-center">Attention Distribution Heatmap</h3>
+      <p class="text-xs text-ivory/40 text-center mb-8">Hover over zones to see attention levels. Notice the U-shaped curve.</p>
+
+      <div class="attention-heatmap flex gap-1 h-24 rounded-lg overflow-hidden border border-sand/10">
+        <div class="zone cursor-pointer flex-1 rounded-l-lg bg-green-500/60 relative" title="System Prompt — High Attention">
+          <div class="absolute bottom-1 left-0 right-0 text-center text-[8px] text-white/80 font-mono">SYS</div>
+        </div>
+        <div class="zone cursor-pointer flex-[2] bg-green-500/40 relative" title="Instructions — High Attention">
+          <div class="absolute bottom-1 left-0 right-0 text-center text-[8px] text-white/80 font-mono">INSTRUCTIONS</div>
+        </div>
+        <div class="zone cursor-pointer flex-[3] bg-yellow-500/20 relative" title="RAG Results — Medium Attention">
+          <div class="absolute bottom-1 left-0 right-0 text-center text-[8px] text-white/60 font-mono">RAG CHUNKS</div>
+        </div>
+        <div class="zone cursor-pointer flex-[4] bg-red-500/15 relative" title="Middle Context — LOW ATTENTION (Danger Zone)">
+          <div class="absolute bottom-1 left-0 right-0 text-center text-[8px] text-white/50 font-mono">⚠ MIDDLE — LOW ATTENTION</div>
+        </div>
+        <div class="zone cursor-pointer flex-[3] bg-yellow-500/20 relative" title="More RAG — Medium Attention">
+          <div class="absolute bottom-1 left-0 right-0 text-center text-[8px] text-white/60 font-mono">MORE RAG</div>
+        </div>
+        <div class="zone cursor-pointer flex-[2] bg-green-500/40 relative" title="Recent Chat — High Attention">
+          <div class="absolute bottom-1 left-0 right-0 text-center text-[8px] text-white/80 font-mono">RECENT</div>
+        </div>
+        <div class="zone cursor-pointer flex-1 rounded-r-lg bg-green-500/60 relative" title="Current Query — Highest Attention">
+          <div class="absolute bottom-1 left-0 right-0 text-center text-[8px] text-white/80 font-mono">Q</div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="flex items-center justify-center gap-6 mt-4">
+        <div class="flex items-center gap-2"><div class="w-3 h-3 rounded bg-green-500/60"></div><span class="text-[10px] text-ivory/40">High attention</span></div>
+        <div class="flex items-center gap-2"><div class="w-3 h-3 rounded bg-yellow-500/20"></div><span class="text-[10px] text-ivory/40">Medium attention</span></div>
+        <div class="flex items-center gap-2"><div class="w-3 h-3 rounded bg-red-500/15"></div><span class="text-[10px] text-ivory/40">Low attention (danger)</span></div>
+      </div>
+    </div>
+
+    <!-- Mitigation Strategies -->
+    <div class="reveal grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+      <div class="p-6 rounded-xl border border-sand/10 bg-ivory/[0.02] hover:bg-ivory/[0.04] transition-colors duration-500">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-lg font-display text-gold">01</span>
+          <h4 class="font-display text-lg text-ivory">Bookend Placement</h4>
+        </div>
+        <p class="text-sm text-ivory/60 font-light leading-relaxed">
+          Put the most critical information at the <strong class="text-ivory font-normal">very start</strong> (system prompt) 
+          and <strong class="text-ivory font-normal">very end</strong> (just before the user's message). 
+          Never bury key instructions in the middle.
+        </p>
+      </div>
+
+      <div class="p-6 rounded-xl border border-sand/10 bg-ivory/[0.02] hover:bg-ivory/[0.04] transition-colors duration-500">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-lg font-display text-gold">02</span>
+          <h4 class="font-display text-lg text-ivory">Repeat Critical Info</h4>
+        </div>
+        <p class="text-sm text-ivory/60 font-light leading-relaxed">
+          For instructions that <em>must</em> be followed, state them in both the system prompt and again near the end. 
+          Claude models are particularly responsive to repeated emphasis at boundaries.
+        </p>
+      </div>
+
+      <div class="p-6 rounded-xl border border-sand/10 bg-ivory/[0.02] hover:bg-ivory/[0.04] transition-colors duration-500">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-lg font-display text-gold">03</span>
+          <h4 class="font-display text-lg text-ivory">Structured XML Tags</h4>
+        </div>
+        <p class="text-sm text-ivory/60 font-light leading-relaxed">
+          Use XML-style tags (<code class="text-gold text-xs">&lt;critical&gt;</code>, <code class="text-gold text-xs">&lt;context&gt;</code>, <code class="text-gold text-xs">&lt;instructions&gt;</code>) 
+          to create explicit boundaries. Claude models natively parse these; GPT models also benefit from clear delimiters.
+        </p>
+      </div>
+
+      <div class="p-6 rounded-xl border border-sand/10 bg-ivory/[0.02] hover:bg-ivory/[0.04] transition-colors duration-500">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-lg font-display text-gold">04</span>
+          <h4 class="font-display text-lg text-ivory">Chunk Reordering</h4>
+        </div>
+        <p class="text-sm text-ivory/60 font-light leading-relaxed">
+          After RAG retrieval, reorder results: most relevant at start and end, least relevant in the middle. 
+          Don't just present them in retrieval-score order.
+        </p>
+      </div>
+
+      <div class="p-6 rounded-xl border border-sand/10 bg-ivory/[0.02] hover:bg-ivory/[0.04] transition-colors duration-500">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-lg font-display text-gold">05</span>
+          <h4 class="font-display text-lg text-ivory">Reduce Middle Bulk</h4>
+        </div>
+        <p class="text-sm text-ivory/60 font-light leading-relaxed">
+          If you have 20 RAG chunks, don't stack them all in the middle. Summarize the middle 14 into a paragraph, 
+          keep the top 3 at the start and bottom 3 at the end in full.
+        </p>
+      </div>
+
+      <div class="p-6 rounded-xl border border-sand/10 bg-ivory/[0.02] hover:bg-ivory/[0.04] transition-colors duration-500">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-lg font-display text-gold">06</span>
+          <h4 class="font-display text-lg text-ivory">Model-Specific Tuning</h4>
+        </div>
+        <p class="text-sm text-ivory/60 font-light leading-relaxed">
+          <span class="text-gold">GPT-4.1</span> shows improved middle attention vs. GPT-4o. 
+          <span class="text-gold">Claude Opus</span> handles long middle sections better than Sonnet. 
+          <span class="text-gold">GPT-5</span> is expected to further reduce this bias. Know your model.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== DIVIDER ========== -->
+<div class="max-w-7xl mx-auto px-6">
+  <div class="h-px" style="background: linear-gradient(to right, transparent, rgba(198,168,120,0.3), transparent);"></div>
+</div>
+
+<!-- ========== CONTEXT COMPRESSION ========== -->
+<section id="compression" class="relative py-32 px-6">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal text-center mb-20">
+      <span class="text-xs font-medium tracking-widest uppercase text-gold mb-4 block">07 — Efficiency</span>
+      <h2 class="font-display text-4xl md:text-5xl text-ivory mb-6">Context Compression<br>Techniques</h2>
+      <p class="text-ivory/60 font-light max-w-2xl mx-auto leading-relaxed">
+        Beyond summarisation, compression reshapes information to preserve meaning in fewer tokens. 
+        These techniques work at the character, token, and semantic levels.
+      </p>
+    </div>
+
+    <!-- Compression Techniques -->
+    <div class="reveal grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-16">
+
+      <!-- Technique 1 -->
+      <div class="group p-8 rounded-xl border border-sand/10 hover:border-sand/30 bg-ivory/[0.02] hover:bg-ivory/[0.04] transition-all duration-500">
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full border border-sand/20 flex items-center justify-center group-hover:border-gold transition-colors duration-500">
+              <span class="iconify text-sand group-hover:text-gold transition-colors duration-500" data-icon="lucide:minimize-2" data-width="18"></span>
+            </div>
+            <h3 class="font-display text-xl text-ivory">Lexical Compression</h3>
+          </div>
+          <span class="text-xs text-gold px-2 py-1 rounded-full bg-gold/10">2-5x</span>
+        </div>
+        <p class="text-sm text-ivory/60 font-light leading-relaxed mb-4">Remove stopwords, abbreviate, use telegraphic style. "The user wants to know about the payment processing system" → "User Q: payment processing system"</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="p-3 rounded bg-red-500/5 border border-red-500/10 text-xs text-red-400/60 font-mono">"Please ensure that you carefully review each of the following documents before providing your analysis"</div>
+          <div class="p-3 rounded bg-green-500/5 border border-green-500/10 text-xs text-green-400/60 font-mono">"Review docs, analyze"</div>
+        </div>
+      </div>
+
+      <!-- Technique 2 -->
+      <div class="group p-8 rounded-xl border border-sand/10 hover:border-sand/30 bg-ivory/[0.02] hover:bg-ivory/[0.04] transition-all duration-500">
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full border border-sand/20 flex items-center justify-center group-hover:border-gold transition-colors duration-500">
+              <span class="iconify text-sand group-hover:text-gold transition-colors duration-500" data-icon="lucide:table" data-width="18"></span>
+            </div>
+            <h3 class="font-display text-xl text-ivory">Structural Compression</h3>
+          </div>
+          <span class="text-xs text-gold px-2 py-1 rounded-full bg-gold/10">3-8x</span>
+        </div>
+        <p class="text-sm text-ivory/60 font-light leading-relaxed mb-4">Convert prose to tables, lists, or JSON. Tabular data is far more token-efficient than natural language descriptions.</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="p-3 rounded bg-red-500/5 border border-red-500/10 text-xs text-red-400/60">"The product costs $49. It has a 30-day refund policy. Support is available 24/7 via chat and email..."</div>
+          <div class="p-3 rounded bg-green-500/5 border border-green-500/10 text-xs text-green-400/60 font-mono">{"price":49,"refund":"30d","support":["24/7 chat","email"]}</div>
+        </div>
+      </div>
+
+      <!-- Technique 3 -->
+      <div class="group p-8 rounded-xl border border-sand/10 hover:border-sand/30 bg-ivory/[0.02] hover:bg-ivory/[0.04] transition-all duration-500">
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full border border-sand/20 flex items-center justify-center group-hover:border-gold transition-colors duration-500">
+              <span class="iconify text-sand group-hover:text-gold transition-colors duration-500" data-icon="lucide:brain" data-width="18"></span>
+            </div>
+            <h3 class="font-display text-xl text-ivory">Semantic Compression</h3>
+          </div>
+          <span class="text-xs text-gold px-2 py-1 rounded-full bg-gold/10">5-20x</span>
+        </div>
+        <p class="text-sm text-ivory/60 font-light leading-relaxed mb-4">Use a smaller model to extract only the propositions that are relevant to your task. Not a summary — a filtered extraction of meaning.</p>
+        <div class="p-3 rounded bg-night/50 border border-sand/10 text-xs text-ivory/40 font-mono leading-relaxed">
+          <span class="text-ivory/60">Original (5K tokens):</span> Full contract text<br>
+          <span class="text-gold">Extracted (400 tokens):</span> Liability cap: $1M. Term: 24mo. Termination: 30d notice. IP: work-for-hire. Governing law: Delaware.
+        </div>
+      </div>
+
+      <!-- Technique 4 -->
+      <div class="group p-8 rounded-xl border border-sand/10 hover:border-sand/30 bg-ivory/[0.02] hover:bg-ivory/[0.04] transition-all duration-500">
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full border border-sand/20 flex items-center justify-center group-hover:border-gold transition-colors duration-500">
+              <span class="iconify text-sand group-hover:text-gold transition-colors duration-500" data-icon="lucide:hash" data-width="18"></span>
+            </div>
+            <h3 class="font-display text-xl text-ivory">Embedding-Based Pruning</h3>
+          </div>
+          <span class="text-xs text-gold px-2 py-1 rounded-full bg-gold/10">Variable</span>
+        </div>
+        <p class="text-sm text-ivory/60 font-light leading-relaxed mb-4">Compare embeddings of context chunks against the query. Drop chunks below a threshold before they ever enter the prompt. This is pre-compression.</p>
+        <div class="p-3 rounded bg-night/50 border border-sand/10 text-xs text-ivory/40 font-mono leading-relaxed">
+          100 chunks × 500 tokens = 50K tokens<br>
+          <span class="text-red-400">After pruning (cosine > 0.75):</span> 12 chunks = 6K tokens<br>
+          <span class="text-green-400">Savings: 44K tokens (88%)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compression ratio comparison across models -->
+    <div class="reveal max-w-4xl mx-auto">
+      <h3 class="font-display text-xl text-ivory mb-6 text-center">When to Compress: Model Decision Guide</h3>
+      <div class="rounded-xl border border-sand/10 overflow-hidden" style="background: rgba(249,245,236,0.02);">
+        <div class="grid grid-cols-5 gap-0 px-5 py-3 border-b border-sand/10 text-[10px] tracking-widest uppercase text-ivory/40">
+          <div>Scenario</div>
+          <div class="text-center">GPT-4o Mini</div>
+          <div class="text-center">GPT-4o</div>
+          <div class="text-center">GPT-4.1</div>
+          <div class="text-center">Claude Opus</div>
+        </div>
+        <div class="grid grid-cols-5 gap-0 px-5 py-4 border-b border-sand/5 text-sm items-center hover:bg-sand/5 transition-colors">
+          <div class="text-ivory/70 font-light text-xs">50-page doc query</div>
+          <div class="text-center"><span class="text-red-400 text-xs">Compress heavily</span></div>
+          <div class="text-center"><span class="text-yellow-400 text-xs">Moderate compression</span></div>
+          <div class="text-center"><span class="text-green-400 text-xs">Light compression</span></div>
+          <div class="text-center"><span class="text-yellow-400 text-xs">Moderate compression</span></div>
+        </div>
+        <div class="grid grid-cols-5 gap-0 px-5 py-4 border-b border-sand/5 text-sm items-center hover:bg-sand/5 transition-colors">
+          <div class="text-ivory/70 font-light text-xs">100-turn chat</div>
+          <div class="text-center"><span class="text-red-400 text-xs">Aggressive summarize</span></div>
+          <div class="text-center"><span class="text-red-400 text-xs">Rolling summary</span></div>
+          <div class="text-center"><span class="text-yellow-400 text-xs">Sliding window</span></div>
+          <div class="text-center"><span class="text-red-400 text-xs">Rolling summary</span></div>
+        </div>
+        <div class="grid grid-cols-5 gap-0 px-5 py-4 border-b border-sand/5 text-sm items-center hover:bg-sand/5 transition-colors">
+          <div class="text-ivory/70 font-light text-xs">Codebase analysis</div>
+          <div class="text-center"><span class="text-red-400 text-xs">Extract APIs only</span></div>
+          <div class="text-center"><span class="text-yellow-400 text-xs">AST + key files</span></div>
+          <div class="text-center"><span class="text-green-400 text-xs">Full codebase OK</span></div>
+          <div class="text-center"><span class="text-yellow-400 text-xs">Structured XML</span></div>
+        </div>
+        <div class="grid grid-cols-5 gap-0 px-5 py-4 text-sm items-center hover:bg-sand/5 transition-colors">
+          <div class="text-ivory/70 font-light text-xs">Multi-doc research</div>
+          <div class="text-center"><span class="text-red-400 text-xs">Top 3 chunks only</span></div>
+          <div class="text-center"><span class="text-yellow-400 text-xs">Top 8 chunks</span></div>
+          <div class="text-center"><span class="text-green-400 text-xs">Top 25+ chunks</span></div>
+          <div class="text-center"><span class="text-yellow-400 text-xs">Top 10 structured</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== DIVIDER ========== -->
+<div class="max-w-7xl mx-auto px-6">
+  <div class="h-px" style="background: linear-gradient(to right, transparent, rgba(198,168,120,0.3), transparent);"></div>
+</div>
+
+<!-- ========== CHEAT SHEET ========== -->
+<section class="relative py-32 px-6">
+  <div class="max-w-7xl mx-auto">
+    <div class="reveal text-center mb-16">
+      <span class="text-xs font-medium tracking-widest uppercase text-gold mb-4 block">Reference</span>
+      <h2 class="font-display text-4xl md:text-5xl text-ivory mb-6">Quick Reference<br>Cheat Sheet</h2>
+    </div>
+
+    <div class="reveal grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+      <!-- OpenAI Column -->
+      <div class="rounded-xl border border-green-500/20 overflow-hidden">
+        <div class="px-6 py-4 bg-green-500/5 border-b border-green-500/20 flex items-center gap-3">
+          <span class="iconify text-green-400" data-icon="simple-icons:openai" data-width="18"></span>
+          <span class="font-display text-ivory">OpenAI Models</span>
+        </div>
+        <div class="p-6 space-y-4">
+          <div>
+            <div class="text-xs text-ivory/40 uppercase tracking-wider mb-1">GPT-4o Mini</div>
+            <div class="text-sm text-ivory/60 font-light">128K · Keep context tiny · 2-3 RAG chunks · Heavy compression · Budget model, budget context</div>
+          </div>
+          <div class="h-px bg-sand/10"></div>
+          <div>
+            <div class="text-xs text-ivory/40 uppercase tracking-wider mb-1">GPT-4o</div>
+            <div class="text-sm text-ivory/60 font-light">128K · Balanced approach · 5-10 RAG chunks · Structured with headers · XML or markdown sections</div>
+          </div>
+          <div class="h-px bg-sand/10"></div>
+          <div>
+            <div class="text-xs text-gold uppercase tracking-wider mb-1">GPT-4.1</div>
+            <div class="text-sm text-ivory/70 font-light">1M · Can handle massive context · Needle-in-haystack king · Less compression needed · Still benefits from structure</div>
+          </div>
+          <div class="h-px bg-sand/10"></div>
+          <div>
+            <div class="text-xs text-ivory/40 uppercase tracking-wider mb-1">GPT-5 (Projected)</div>
+            <div class="text-sm text-ivory/60 font-light">2M+ · May reduce lost-in-middle · Better reasoning over long context · Still: relevance > volume</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Anthropic Column -->
+      <div class="rounded-xl border border-orange-500/20 overflow-hidden">
+        <div class="px-6 py-4 bg-orange-500/5 border-b border-orange-500/20 flex items-center gap-3">
+          <span class="iconify text-orange-400" data-icon="simple-icons:anthropic" data-width="18"></span>
+          <span class="font-display text-ivory">Anthropic Models</span>
+        </div>
+        <div class="p-6 space-y-4">
+          <div>
+            <div class="text-xs text-ivory/40 uppercase tracking-wider mb-1">Claude Sonnet 4</div>
+            <div class="text-sm text-ivory/60 font-light">200K · Fast & capable · XML tags native · Good middle-section handling · Balance speed vs. depth</div>
+          </div>
+          <div class="h-px bg-sand/10"></div>
+          <div>
+            <div class="text-xs text-gold uppercase tracking-wider mb-1">Claude Opus 4</div>
+            <div class="text-sm text-ivory/70 font-light">200K · Deepest reasoning · Loves XML structure · Most sensitive to noise — clean context critical · Best with structured assembly</div>
+          </div>
+          <div class="h-px bg-sand/10"></div>
+          <div class="p-3 rounded bg-orange-500/5 border border-orange-500/10 mt-2">
+            <div class="text-[10px] text-orange-400/70 uppercase tracking-wider mb-1">Anthropic Tip</div>
+            <div class="text-xs text-ivory/50 font-light">Use prompt caching for static context. Structure with &lt;system&gt;, &lt;documents&gt;, &lt;instructions&gt; tags. Opus rewards precision over volume.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Universal Principles Column -->
+      <div class="rounded-xl border border-gold/20 overflow-hidden">
+        <div class="px-6 py-4 bg-gold/5 border-b border-gold/20 flex items-center gap-3">
+          <span class="iconify text-gold" data-icon="lucide:sparkles" data-width="18"></span>
+          <span class="font-display text-ivory">Universal Principles</span>
+        </div>
+        <div class="p-6 space-y-3">
+          <div class="flex items-start gap-3 text-sm text-ivory/60 font-light">
+            <span class="text-gold mt-0.5 flex-shrink-0">1.</span>
+            <span>Every token must earn its place</span>
+          </div>
+          <div class="flex items-start gap-3 text-sm text-ivory/60 font-light">
+            <span class="text-gold mt-0.5 flex-shrink-0">2.</span>
+            <span>Structure beats volume — always</span>
+          </div>
+          <div class="flex items-start gap-3 text-sm text-ivory/60 font-light">
+            <span class="text-gold mt-0.5 flex-shrink-0">3.</span>
+            <span>Critical info at start and end</span>
+          </div>
+          <div class="flex items-start gap-3 text-sm text-ivory/60 font-light">
+            <span class="text-gold mt-0.5 flex-shrink-0">4.</span>
+            <span>Compress before you truncate</span>
+          </div>
+          <div class="flex items-start gap-3 text-sm text-ivory/60 font-light">
+            <span class="text-gold mt-0.5 flex-shrink-0">5.</span>
+            <span>Know your model's attention profile</span>
+          </div>
+          <div class="flex items-start gap-3 text-sm text-ivory/60 font-light">
+            <span class="text-gold mt-0.5 flex-shrink-0">6.</span>
+            <span>Allocate token budgets per component</span>
+          </div>
+          <div class="flex items-start gap-3 text-sm text-ivory/60 font-light">
+            <span class="text-gold mt-0.5 flex-shrink-0">7.</span>
+            <span>Test with adversarial middle content</span>
+          </div>
+          <div class="flex items-start gap-3 text-sm text-ivory/60 font-light">
+            <span class="text-gold mt-0.5 flex-shrink-0">8.</span>
+            <span>Measure output quality, not just token usage</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== FOOTER ========== -->
+<footer class="border-t border-sand/10 py-16 px-6">
+  <div class="max-w-7xl mx-auto text-center">
+    <div class="font-display text-2xl tracking-tight text-ivory mb-4">
+      <span class="text-gold">CE</span>ngineering
+    </div>
+    <p class="text-sm text-ivory/30 font-light max-w-lg mx-auto leading-relaxed mb-8">
+      Context engineering is not about filling windows — it's about building clarity. 
+      The best context is the one where every token serves the task.
+    </p>
+    <div class="flex items-center justify-center gap-6 text-ivory/20 text-xs">
+      <span>Context sizes based on publicly available specifications as of 2025</span>
+    </div>
+  </div>
+</footer>
+
+<!-- ========== JAVASCRIPT ========== -->
+<script>
+// === Scroll Reveal ===
+const revealElements = document.querySelectorAll('.reveal');
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+revealElements.forEach(el => revealObserver.observe(el));
+
+// === Token Bar Animation ===
+const tokenBars = document.querySelectorAll('.token-bar');
+const tokenObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('animated');
+    }
+  });
+}, { threshold: 0.5 });
+tokenBars.forEach(bar => tokenObserver.observe(bar));
+
+// === Context Window Simulator ===
+const MAX_TOKENS = 128000;
+const blocks = document.querySelectorAll('#contextBlocks .ctx-block');
+const usageBar = document.getElementById('usageBar');
+const usagePercent = document.getElementById('usagePercent');
+const tokenCount = document.getElementById('tokenCount');
+
+function updateUsage() {
+  let total = 0;
+  blocks.forEach(block => {
+    if (block.dataset.included === 'true') {
+      total += parseInt(block.dataset.tokens);
+    }
+  });
+  const percent = Math.round((total / MAX_TOKENS) * 100);
+  usageBar.style.width = percent + '%';
+  usagePercent.textContent = percent + '%';
+  tokenCount.textContent = total.toLocaleString() + ' / ' + MAX_TOKENS.toLocaleString() + ' tokens used';
+
+  // Color change based on usage
+  if (percent > 90) {
+    usageBar.style.background = 'linear-gradient(to right, #ef4444, #dc2626)';
+  } else if (percent > 70) {
+    usageBar.style.background = 'linear-gradient(to right, #eab308, #f59e0b)';
+  } else {
+    usageBar.style.background = 'linear-gradient(to right, #D9B871, #C6A878)';
+  }
+}
+
+function toggleBlock(block) {
+  const isIncluded = block.dataset.included === 'true';
+  block.dataset.included = isIncluded ? 'false' : 'true';
+
+  if (isIncluded) {
+    block.classList.add('excluded');
+    block.classList.remove('border-sand/20', 'bg-sand/5');
+    block.classList.add('border-red-500/20', 'bg-red-500/5');
+    const label = block.querySelector('.text-xs.text-gold, .text-xs.text-red-400\\/50');
+    if (label) {
+      label.classList.remove('text-gold');
+      label.classList.add('text-red-400/50');
+    }
+    const icon = block.querySelector('.iconify.text-gold');
+    if (icon) {
+      icon.classList.remove('text-gold');
+      icon.classList.add('text-red-400/50');
+    }
+    const value = block.querySelector('.text-lg');
+    if (value) {
+      value.classList.add('text-ivory/30');
+      value.classList.remove('text-ivory');
+    }
+    const unit = block.querySelector('.text-\\[10px\\]');
+    if (unit) unit.textContent = 'excluded';
+  } else {
+    block.classList.remove('excluded');
+    block.classList.add('border-sand/20', 'bg-sand/5');
+    block.classList.remove('border-red-500/20', 'bg-red-500/5');
+    const label = block.querySelector('.text-xs.text-red-400\\/50');
+    if (label) {
+      label.classList.add('text-gold');
+      label.classList.remove('text-red-400/50');
+    }
+    const icon = block.querySelector('.iconify.text-red-400\\/50');
+    if (icon) {
+      icon.classList.add('text-gold');
+      icon.classList.remove('text-red-400/50');
+    }
+    const value = block.querySelector('.text-lg');
+    if (value) {
+      value.classList.remove('text-ivory/30');
+      value.classList.add('text-ivory');
+    }
+    const unit = block.querySelector('.text-\\[10px\\]');
+    if (unit) unit.textContent = 'tokens';
+  }
+
+  updateUsage();
+}
+
+// Initialize
+updateUsage();
+
+// === Accordion ===
+function toggleAccordion(btn) {
+  const content = btn.nextElementSibling;
+  const icon = btn.querySelector('.iconify');
+  const isOpen = content.classList.contains('open');
+
+  // Close all others
+  document.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('open'));
+  document.querySelectorAll('.accordion-btn .iconify').forEach(i => i.style.transform = 'rotate(0deg)');
+
+  if (!isOpen) {
+    content.classList.add('open');
+    icon.style.transform = 'rotate(180deg)';
+  }
+}
+
+// === Mobile Menu ===
+const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+const mobileMenu = document.getElementById('mobileMenu');
+let menuOpen = false;
+
+mobileMenuBtn.addEventListener('click', () => {
+  menuOpen = !menuOpen;
+  if (menuOpen) {
+    mobileMenu.classList.remove('hidden');
+    mobileMenu.classList.add('flex');
+  } else {
+    mobileMenu.classList.add('hidden');
+    mobileMenu.classList.remove('flex');
+  }
+});
+
+document.querySelectorAll('.mobile-nav').forEach(link => {
+  link.addEventListener('click', () => {
+    menuOpen = false;
+    mobileMenu.classList.add('hidden');
+    mobileMenu.classList.remove('flex');
+  });
+});
+
+// === Active Nav Link ===
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-link');
+
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(section => {
+    const sectionTop = section.offsetTop - 100;
+    if (scrollY >= sectionTop) {
+      current = section.getAttribute('id');
+    }
+  });
+
+  navLinks.forEach(link => {
+    link.classList.remove('active');
+    if (link.getAttribute('href') === '#' + current) {
+      link.classList.add('active');
+    }
+  });
+
+  // Nav background opacity
+  const nav = document.getElementById('mainNav');
+  if (scrollY > 100) {
+    nav.style.background = 'rgba(13,27,42,0.95)';
+    nav.style.borderBottom = '1px solid rgba(198,168,120,0.1)';
+  } else {
+    nav.style.background = 'rgba(13,27,42,0.8)';
+    nav.style.borderBottom = 'none';
+  }
+});
+
+// === Smooth scroll ===
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function(e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+</script>
+
+</body>
+</html>
