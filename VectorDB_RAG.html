@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vector Databases & RAG Systems</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script>
+tailwind.config={theme:{extend:{fontFamily:{heading:['Space Grotesk','sans-serif'],body:['DM Sans','sans-serif']}}}}
+</script>
+<style>
+:root{--bg:#0a0a0a;--card:#141414;--card2:#1a1a1a;--border:#262626;--border2:#333;--text:#fafafa;--text2:#a3a3a3;--muted:#525252;--accent:#f59e0b;--teal:#14b8a6;--cherry:#ef4444;--violet:#a855f7;--sky:#38bdf8}
+*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+h1,h2,h3,h4,h5,h6{font-family:'Space Grotesk',sans-serif}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:#333;border-radius:3px}
+
+.sidebar{position:fixed;left:0;top:0;width:256px;height:100vh;background:#0d0d0d;border-right:1px solid var(--border);z-index:50;overflow-y:auto;transition:transform .3s}
+.sidebar-link{display:flex;align-items:center;gap:10px;padding:7px 14px;margin:2px 8px;border-radius:8px;color:var(--muted);font-size:12.5px;transition:all .2s;cursor:pointer;text-decoration:none}
+.sidebar-link:hover{color:var(--text2);background:rgba(255,255,255,.03)}
+.sidebar-link.active{color:var(--accent);background:rgba(245,158,11,.08)}
+.sidebar-link i{width:16px;text-align:center;font-size:11px}
+
+.mc{margin-left:256px;transition:margin .3s}
+.cs{padding:72px 44px;max-width:1060px;margin:0 auto;position:relative}
+.sl{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:6px}
+.st{font-size:34px;font-weight:700;line-height:1.2;margin-bottom:14px}
+.sd{color:var(--text2);font-size:15px;line-height:1.7;max-width:700px}
+.vc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px;transition:all .25s}
+.vc:hover{border-color:var(--border2)}
+
+.cb{background:#0d0d0d;border:1px solid var(--border);border-radius:10px;padding:18px;font-family:'Courier New',monospace;font-size:12.5px;line-height:1.7;overflow-x:auto;color:#d4d4d4}
+.cb .kw{color:#c586c0}.cb .fn{color:#dcdcaa}.cb .str{color:#ce9178}.cb .cm{color:#6a9955}.cb .num{color:#b5cea8}.cb .var{color:#9cdcfe}
+
+.rv{opacity:0;transform:translateY(22px);transition:opacity .55s,transform .55s}.rv.vis{opacity:1;transform:translateY(0)}
+.rd1{transition-delay:.1s}.rd2{transition-delay:.2s}.rd3{transition-delay:.3s}.rd4{transition-delay:.4s}
+
+.bg-grid{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#222 1px,transparent 1px);background-size:32px 32px;opacity:.3}
+.bg-blob{position:fixed;border-radius:50%;filter:blur(120px);pointer-events:none;z-index:0;opacity:.07}
+
+.pn{width:54px;height:54px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--muted);background:var(--card);transition:all .5s;z-index:2}
+.pn.act{border-color:var(--accent);color:var(--accent);box-shadow:0 0 22px rgba(245,158,11,.2)}
+.pn.dn{border-color:var(--teal);color:var(--teal);background:rgba(20,184,166,.08)}
+.pc{height:2px;flex:1;background:var(--border);transition:background .5s}.pc.act{background:linear-gradient(90deg,var(--teal),var(--accent))}
+
+.chk{padding:10px 14px;border-radius:8px;border-left:3px solid;margin:5px 0;font-size:12.5px;line-height:1.6;background:rgba(255,255,255,.02)}
+
+.tbtn{padding:7px 14px;border-radius:8px;font-size:12.5px;color:var(--muted);background:0;border:1px solid transparent;cursor:pointer;transition:all .2s;font-family:'DM Sans'}
+.tbtn:hover{color:var(--text2)}.tbtn.act{color:var(--accent);background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.2)}
+
+.ct{width:100%;border-collapse:collapse;font-size:12.5px}
+.ct th{text-align:left;padding:9px 12px;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border);font-size:10.5px;text-transform:uppercase;letter-spacing:1px}
+.ct td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.03);color:var(--text2)}
+.tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10.5px;font-weight:500}
+
+/* Definition boxes */
+.db{background:rgba(245,158,11,.04);border:1px solid rgba(245,158,11,.12);border-radius:10px;padding:16px 18px;margin:12px 0}
+.db .dl{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--accent);font-weight:600;margin-bottom:5px}
+.db .dt{font-size:13.5px;color:var(--text);line-height:1.7}
+.ab{background:rgba(20,184,166,.04);border:1px solid rgba(20,184,166,.12);border-radius:10px;padding:12px 16px;margin:10px 0;font-size:12.5px;color:var(--text2);line-height:1.7}
+.ab i{color:var(--teal);margin-right:6px}
+.pc2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.pi{display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--text2);line-height:1.5}
+.pi i{margin-top:2px;font-size:10px;flex-shrink:0}
+.wb{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;font-size:12px;margin-top:8px}
+
+.dc{padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);margin:6px 0;font-size:12.5px;color:var(--text2);line-height:1.6}
+.dc .dq{color:var(--text);font-weight:600;margin-bottom:4px}
+
+.rc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;margin:7px 0;transition:all .3s}
+.rc.hl{border-color:var(--accent);background:rgba(245,158,11,.04)}
+.sb{height:4px;border-radius:2px;background:#222;overflow:hidden}
+.sbf{height:100%;border-radius:2px;transition:width .6s}
+.tc{display:inline-block;width:2px;height:15px;background:var(--accent);animation:bl .8s infinite;vertical-align:text-bottom;margin-left:2px}
+@keyframes bl{0%,50%{opacity:1}51%,100%{opacity:0}}
+
+.doc-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:18px;font-size:11.5px;border:1px solid var(--border);background:var(--card);cursor:pointer;transition:all .2s}
+.doc-chip.sel{border-color:var(--accent);background:rgba(245,158,11,.08);color:var(--accent)}
+.doc-chip .dot{width:7px;height:7px;border-radius:50%}
+
+.tgb{position:fixed;top:14px;left:14px;z-index:60;width:38px;height:38px;border-radius:10px;background:var(--card);border:1px solid var(--border);color:var(--text2);display:none;align-items:center;justify-content:center;cursor:pointer}
+
+@media(max-width:900px){
+.sidebar{transform:translateX(-256px)}.sidebar.open{transform:translateX(0)}
+.mc{margin-left:0!important}.tgb{display:flex}.cs{padding:44px 18px}.st{font-size:26px}.pc2{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-blob" style="width:600px;height:600px;background:var(--accent);top:-200px;right:-200px"></div>
+<div class="bg-blob" style="width:500px;height:500px;background:var(--teal);bottom:-150px;left:-150px"></div>
+<button class="tgb" id="tgb" aria-label="Toggle nav"><i class="fas fa-bars"></i></button>
+
+<nav class="sidebar" id="sb">
+<div style="padding:22px 18px 14px">
+  <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">
+    <div style="width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#d97706);display:flex;align-items:center;justify-content:center"><i class="fas fa-vector-square" style="font-size:12px;color:#000"></i></div>
+    <span class="font-heading font-semibold text-sm">VectorRAG</span>
+  </div>
+  <p style="font-size:10.5px;color:var(--muted);margin-left:33px">Intermediate Workshop</p>
+</div>
+<div style="padding:0 0 18px">
+  <a class="sidebar-link active" href="#hero"><i class="fas fa-rocket"></i>Overview</a>
+  <a class="sidebar-link" href="#knowledge"><i class="fas fa-database"></i>Knowledge at Scale</a>
+  <a class="sidebar-link" href="#landscape"><i class="fas fa-layer-group"></i>Vector DB Landscape</a>
+  <a class="sidebar-link" href="#indexing"><i class="fas fa-sitemap"></i>Indexing Strategies</a>
+  <a class="sidebar-link" href="#metadata"><i class="fas fa-filter"></i>Metadata & Hybrid</a>
+  <a class="sidebar-link" href="#chunking"><i class="fas fa-scissors"></i>Chunking Strategies</a>
+  <a class="sidebar-link" href="#namespace"><i class="fas fa-users"></i>Multi-tenancy</a>
+  <a class="sidebar-link" href="#crud"><i class="fas fa-code"></i>CRUD Operations</a>
+  <a class="sidebar-link" href="#pipeline"><i class="fas fa-diagram-project"></i>RAG Pipeline</a>
+  <a class="sidebar-link" href="#naive"><i class="fas fa-triangle-exclamation"></i>Naive RAG</a>
+  <a class="sidebar-link" href="#advanced"><i class="fas fa-brain"></i>Advanced RAG</a>
+  <a class="sidebar-link" href="#reranking"><i class="fas fa-arrow-up-wide-short"></i>Re-ranking</a>
+  <a class="sidebar-link" href="#parent-doc"><i class="fas fa-folder-tree"></i>Parent-Document</a>
+  <a class="sidebar-link" href="#agentic"><i class="fas fa-robot"></i>Agentic RAG</a>
+  <a class="sidebar-link" href="#demo" style="color:var(--accent)"><i class="fas fa-flask"></i>Interactive Demo</a>
+</div>
+</nav>
+
+<main class="mc" id="mc">
+
+<!-- HERO -->
+<section class="cs" id="hero" style="min-height:100vh;display:flex;flex-direction:column;justify-content:center;position:relative">
+<canvas id="hc" style="position:absolute;inset:0;z-index:0;opacity:.4"></canvas>
+<div style="position:relative;z-index:1">
+  <div class="sl rv">Workshop Module</div>
+  <h1 class="st rv rd1" style="font-size:50px;max-width:680px">Vector Databases<br>& RAG Systems</h1>
+  <p class="sd rv rd2" style="font-size:17px;margin-bottom:28px">From storing embeddings at scale to building production-grade retrieval-augmented generation pipelines. Concepts, trade-offs, and a hands-on demo.</p>
+  <div class="rv rd3" style="display:flex;gap:12px;flex-wrap:wrap">
+    <a href="#demo" style="display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:10px;background:var(--accent);color:#000;font-weight:600;font-size:13.5px;text-decoration:none">Jump to Demo <i class="fas fa-arrow-right" style="font-size:11px"></i></a>
+    <a href="#landscape" style="display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:10px;background:0;color:var(--text2);border:1px solid var(--border);font-weight:500;font-size:13.5px;text-decoration:none">Start Learning</a>
+  </div>
+  <div class="rv rd4" style="margin-top:44px;display:flex;gap:30px;flex-wrap:wrap">
+    <div><span style="font-size:27px;font-weight:700;color:var(--accent)">5</span><span style="color:var(--muted);font-size:12.5px;margin-left:5px">Vector DBs</span></div>
+    <div><span style="font-size:27px;font-weight:700;color:var(--teal)">3</span><span style="color:var(--muted);font-size:12.5px;margin-left:5px">Index Types</span></div>
+    <div><span style="font-size:27px;font-weight:700;color:var(--violet)">4</span><span style="color:var(--muted);font-size:12.5px;margin-left:5px">Chunking Methods</span></div>
+    <div><span style="font-size:27px;font-weight:700;color:var(--cherry)">5</span><span style="color:var(--muted);font-size:12.5px;margin-left:5px">RAG Patterns</span></div>
+  </div>
+</div>
+</section>
+
+<!-- KNOWLEDGE AT SCALE -->
+<section class="cs" id="knowledge">
+<div class="sl rv">Foundation</div>
+<h2 class="st rv rd1">Storing and Retrieving Knowledge at Scale</h2>
+<div class="db rv rd2">
+  <div class="dl">What is a Vector Embedding?</div>
+  <div class="dt">A vector embedding is a <strong>list of numbers</strong> (e.g., 1536 decimal values) that represents the <strong>meaning</strong> of a piece of text. Texts with similar meanings produce vectors that are close together in this number space. Think of it as coordinates on a map — "dog" and "puppy" land near each other, while "dog" and "stock market" land far apart.</div>
+</div>
+<div class="ab rv rd2"><i class="fas fa-lightbulb"></i><strong>Analogy:</strong> Imagine a library where every book is placed not by author or title, but by <em>what it's about</em>. Books about similar topics end up on the same shelf. Vector search lets you walk to the right shelf, even if you use completely different words than the book's title.</div>
+<div class="rv rd3" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px">
+  <div class="vc">
+    <h4 style="font-size:14px;color:var(--cherry);margin-bottom:8px"><i class="fas fa-xmark" style="margin-right:5px"></i>Keyword Search (BM25)</h4>
+    <p style="color:var(--text2);font-size:12.5px;line-height:1.7">Query: <em>"time off policy"</em><br>Document says: <em>"employees are entitled to 20 days of paid annual leave"</em><br><br><span style="color:var(--cherry)">No match.</span> The words don't overlap, so traditional search fails to find it.</p>
+  </div>
+  <div class="vc" style="border-color:rgba(20,184,166,.3)">
+    <h4 style="font-size:14px;color:var(--teal);margin-bottom:8px"><i class="fas fa-check" style="margin-right:5px"></i>Vector Search</h4>
+    <p style="color:var(--text2);font-size:12.5px;line-height:1.7">Query: <em>"time off policy"</em><br>Document: <em>"employees are entitled to 20 days of paid annual leave"</em><br><br><span style="color:var(--teal)">Similarity: 0.89</span> — The embeddings understand "time off" ≈ "paid annual leave" in meaning.</p>
+  </div>
+</div>
+</section>
+
+<!-- VECTOR DB LANDSCAPE -->
+<section class="cs" id="landscape">
+<div class="sl rv">Ecosystem</div>
+<h2 class="st rv rd1">Vector Database Landscape</h2>
+<p class="sd rv rd2" style="margin-bottom:30px">No single vector database dominates every use case. The right choice depends on your scale, latency requirements, existing infrastructure, and operational constraints.</p>
+<div class="rv rd2" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:28px">
+  <div class="vc" style="border-top:3px solid var(--accent)"><div style="font-size:17px;font-weight:700;margin-bottom:3px">Pinecone</div><div class="tag" style="background:rgba(245,158,11,.1);color:var(--accent);margin-bottom:8px">Managed</div><p style="font-size:11.5px;color:var(--text2);line-height:1.6">Fully managed, serverless. Zero ops overhead. Proprietary. Best for teams that don't want to manage infrastructure.</p></div>
+  <div class="vc" style="border-top:3px solid var(--teal)"><div style="font-size:17px;font-weight:700;margin-bottom:3px">Weaviate</div><div class="tag" style="background:rgba(20,184,166,.1);color:var(--teal);margin-bottom:8px">Open Source</div><p style="font-size:11.5px;color:var(--text2);line-height:1.6">Built-in hybrid search (BM25 + vector). GraphQL + REST. Modules for multi-modal data.</p></div>
+  <div class="vc" style="border-top:3px solid var(--violet)"><div style="font-size:17px;font-weight:700;margin-bottom:3px">Chroma</div><div class="tag" style="background:rgba(168,85,247,.1);color:var(--violet);margin-bottom:8px">Lightweight</div><p style="font-size:11.5px;color:var(--text2);line-height:1.6">Python-first, embed-and-go. Ideal for local dev and prototyping. In-memory or persistent.</p></div>
+  <div class="vc" style="border-top:3px solid var(--sky)"><div style="font-size:17px;font-weight:700;margin-bottom:3px">pgvector</div><div class="tag" style="background:rgba(56,189,248,.1);color:var(--sky);margin-bottom:8px">Postgres</div><p style="font-size:11.5px;color:var(--text2);line-height:1.6">PostgreSQL extension. Leverage existing SQL infra. Great when vectors are one feature among many.</p></div>
+  <div class="vc" style="border-top:3px solid var(--cherry)"><div style="font-size:17px;font-weight:700;margin-bottom:3px">Qdrant</div><div class="tag" style="background:rgba(239,68,68,.1);color:var(--cherry);margin-bottom:8px">High Perf</div><p style="font-size:11.5px;color:var(--text2);line-height:1.6">Rust-based, optimized throughput. Rich filtering, gRPC + REST. Excellent for high-scale workloads.</p></div>
+</div>
+<div class="rv rd3 vc" style="overflow-x:auto">
+<table class="ct">
+<thead><tr><th>Feature</th><th>Pinecone</th><th>Weaviate</th><th>Chroma</th><th>pgvector</th><th>Qdrant</th></tr></thead>
+<tbody>
+<tr><td style="color:var(--text)">Hosting</td><td>Cloud only</td><td>Self / Cloud</td><td>Self / Cloud</td><td>Self-host</td><td>Self / Cloud</td></tr>
+<tr><td style="color:var(--text)">Hybrid Search</td><td>Sparse-dense</td><td>Built-in BM25</td><td>Plugin</td><td>Manual</td><td>Sparse-dense</td></tr>
+<tr><td style="color:var(--text)">Filtering</td><td>Metadata</td><td>GraphQL filter</td><td>Where clause</td><td>SQL WHERE</td><td>Payload filter</td></tr>
+<tr><td style="color:var(--text)">Scale</td><td>Billions</td><td>Millions+</td><td>Thousands</td><td>Millions</td><td>Billions</td></tr>
+<tr><td style="color:var(--text)">Best For</td><td>Production SaaS</td><td>Feature-rich apps</td><td>Prototyping</td><td>SQL-native apps</td><td>High throughput</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<!-- INDEXING STRATEGIES (EXPANDED) -->
+<section class="cs" id="indexing">
+<div class="sl rv">Performance</div>
+<h2 class="st rv rd1">Indexing Strategies</h2>
+<div class="db rv rd2">
+  <div class="dl">What is an Index?</div>
+  <div class="dt">An index is a <strong>data structure built over your vectors</strong> that makes search fast. Without an index, finding the closest vector to your query means comparing it against <em>every single vector</em> — like looking for a word in a book by reading every page. An index organizes vectors so you can skip most of them and find the answer in milliseconds.</div>
+</div>
+<p class="sd rv rd2" style="margin-bottom:24px">The index type determines the fundamental trade-off between <strong style="color:var(--text)">query speed</strong>, <strong style="color:var(--text)">accuracy (recall)</strong>, and <strong style="color:var(--text)">memory usage</strong>.</p>
+
+<!-- FLAT INDEX -->
+<div class="rv rd2 vc" style="margin-bottom:16px;border-left:3px solid var(--teal)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <h4 style="font-size:17px;font-weight:600">Flat Index (Brute Force)</h4>
+    <span class="tag" style="background:rgba(20,184,166,.1);color:var(--teal)">Exact Match</span>
+  </div>
+  <div class="db" style="margin:10px 0">
+    <div class="dl">Definition</div>
+    <div class="dt">No data structure at all — just your raw vectors stored in a list. When a query comes in, the system calculates the distance (similarity) between the query and <strong>every single vector</strong>, one by one, then returns the closest ones. It's like scanning every item in a supermarket to find the cheapest milk.</div>
+  </div>
+  <div class="ab"><i class="fas fa-lightbulb"></i><strong>Analogy:</strong> You have 10,000 photos on your phone. To find one of a sunset, you swipe through every single photo. Slow, but you'll <em>definitely</em> find it if it exists. No photo gets skipped.</div>
+  <div class="pc2">
+    <div><div class="pi"><i class="fas fa-check" style="color:var(--teal)"></i><span><strong>100% recall</strong> — guaranteed to find the true closest vectors, no approximation</span></div><div class="pi"><i class="fas fa-check" style="color:var(--teal)"></i><span><strong>Zero build time</strong> — no index to construct, just store vectors</span></div><div class="pi"><i class="fas fa-check" style="color:var(--teal)"></i><span><strong>Low memory</strong> — only stores the vectors themselves, no extra structure</span></div></div>
+    <div><div class="pi"><i class="fas fa-xmark" style="color:var(--cherry)"></i><span><strong>O(n) latency</strong> — gets linearly slower as you add more vectors. 1M vectors? Every query checks all 1M.</span></div><div class="pi"><i class="fas fa-xmark" style="color:var(--cherry)"></i><span><strong>Not viable at scale</strong> — unusable beyond ~100K vectors for real-time queries</span></div></div>
+  </div>
+  <div class="wb" style="background:rgba(20,184,166,.08);color:var(--teal)"><i class="fas fa-bullseye"></i>Use when: Dataset is small (&lt;100K vectors), or you need a <strong>baseline for benchmarking</strong> other indexes against.</div>
+</div>
+
+<!-- IVF INDEX -->
+<div class="rv rd2 vc" style="margin-bottom:16px;border-left:3px solid var(--accent)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <h4 style="font-size:17px;font-weight:600">IVF (Inverted File Index)</h4>
+    <span class="tag" style="background:rgba(245,158,11,.1);color:var(--accent)">Partitioned</span>
+  </div>
+  <div class="db" style="margin:10px 0">
+    <div class="dl">Definition</div>
+    <div class="dt">During index build, runs <strong>k-means clustering</strong> to group your vectors into, say, 256 clusters (partitions). At query time, instead of checking all vectors, it first finds the closest few cluster centers, then <strong>only searches within those clusters</strong>. The <code>nprobe</code> parameter controls how many clusters to check.</div>
+  </div>
+  <div class="ab"><i class="fas fa-lightbulb"></i><strong>Analogy:</strong> A supermarket organizes products into aisles (clusters). Instead of checking every shelf, you first figure out "milk is in aisle 3 and 7" (find closest cluster centers), then only walk down those 2 aisles. Much faster, but you might miss milk if it was accidentally placed in aisle 9.</div>
+  <div class="pc2">
+    <div><div class="pi"><i class="fas fa-check" style="color:var(--teal)"></i><span><strong>Much faster than flat</strong> — only searches a fraction of vectors</span></div><div class="pi"><i class="fas fa-check" style="color:var(--teal)"></i><span><strong>Tunable accuracy</strong> — increase nprobe for better recall, decrease for speed</span></div><div class="pi"><i class="fas fa-check" style="color:var(--teal)"></i><span><strong>Good for 1M-100M vectors</strong> — practical sweet spot for many use cases</span></div></div>
+    <div><div class="pi"><i class="fas fa-xmark" style="color:var(--cherry)"></i><span><strong>Requires training</strong> — must run k-means on a sample before indexing</span></div><div class="pi"><i class="fas fa-xmark" style="color:var(--cherry)"></i><span><strong>Can miss results</strong> — if the closest vector is in a cluster you didn't check</span></div><div class="pi"><i class="fas fa-xmark" style="color:var(--cherry)"></i><span><strong>Not great for real-time inserts</strong> — adding vectors to existing clusters is expensive</span></div></div>
+  </div>
+  <div style="background:#0d0d0d;border:1px solid var(--border);border-radius:8px;padding:12px;margin:10px 0;font-size:12px;color:var(--text2)">
+    <strong style="color:var(--text)">The nprobe knob:</strong> With 256 clusters, nprobe=8 means you search 8/256 = 3% of vectors. nprobe=64 searches 25%. nprobe=256 = flat search (100%). <span style="color:var(--accent)">Typical: nprobe=8 to 32.</span>
+  </div>
+  <div class="wb" style="background:rgba(245,158,11,.08);color:var(--accent)"><i class="fas fa-bullseye"></i>Use when: Dataset is <strong>1M-100M vectors</strong>, you need a balance of speed and accuracy, and your data is relatively static (batch updates, not streaming).</div>
+</div>
+
+<!-- HNSW INDEX -->
+<div class="rv rd2 vc" style="margin-bottom:16px;border-left:3px solid var(--violet);border-color:rgba(168,85,247,.3)">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <h4 style="font-size:17px;font-weight:600">HNSW (Hierarchical Navigable Small World)</h4>
+    <span class="tag" style="background:rgba(168,85,247,.1);color:var(--violet)">Graph-Based — Industry Default</span>
+  </div>
+  <div class="db" style="margin:10px 0">
+    <div class="dl">Definition</div>
+    <div class="dt">Builds a <strong>multi-layer graph</strong> where each vector is a node connected to its neighbors. The top layer has few long-range connections (like highways between cities). The bottom layer has all vectors with many short-range connections (local roads). Search starts at the top layer, greedily hops toward the query, then drops down a layer to refine. Like zooming in on Google Maps — start with country-level highways, end at street-level roads.</div>
+  </div>
+  <div class="ab"><i class="fas fa-lightbulb"></i><strong>Analogy:</strong> Think of a video game minimap. The world map (top layer) shows you which region to go to. The region map (middle layer) shows which neighborhood. The street map (bottom layer) shows the exact house. You navigate down layers, getting more precise at each step — never needing to check every house.</div>
+  <div class="pc2">
+    <div><div class="pi"><i class="fas fa-check" style="color:var(--teal)"></i><span><strong>O(log n) speed</strong> — extremely fast, barely slows down as dataset grows</span></div><div class="pi"><i class="fas fa-check" style="color:var(--teal)"></i><span><strong>High recall (95-99%+)</strong> — very few misses in practice</span></div><div class="pi"><i class="fas fa-check" style="color:var(--teal)"></i><span><strong>Supports incremental inserts</strong> — add vectors without rebuilding</span></div><div class="pi"><i class="fas fa-check" style="color:var(--teal)"></i><span><strong>Default in Pinecone, Weaviate, Qdrant</strong> — battle-tested</span></div></div>
+    <div><div class="pi"><i class="fas fa-xmark" style="color:var(--cherry)"></i><span><strong>High memory usage</strong> — storing all those graph edges can use 2-4x the raw vector memory</span></div><div class="pi"><i class="fas fa-xmark" style="color:var(--cherry)"></i><span><strong>Slow index build</strong> — constructing the graph is computationally expensive</span></div><div class="pi"><i class="fas fa-xmark" style="color:var(--cherry)"></i><span><strong>Tuning knobs are non-obvious</strong> — M, efConstruction, efSearch interact in complex ways</span></div></div>
+  </div>
+  <div style="background:#0d0d0d;border:1px solid var(--border);border-radius:8px;padding:12px;margin:10px 0;font-size:12px;color:var(--text2)">
+    <strong style="color:var(--text)">Key parameters:</strong> <span style="color:var(--violet)">M</span> = max connections per node (default 16, higher = better recall but more memory). <span style="color:var(--violet)">efConstruction</span> = build-time accuracy (default 200, higher = better index but slower build). <span style="color:var(--violet)">efSearch</span> = query-time beam width (default 50-200, higher = better recall but slower query).
+  </div>
+  <div class="wb" style="background:rgba(168,85,247,.08);color:var(--violet)"><i class="fas fa-bullseye"></i>Use when: <strong>Production workloads of any size</strong>. This is the default choice for most real applications. Use it unless you have a specific reason not to.</div>
+</div>
+
+<!-- DECISION GUIDE -->
+<div class="rv rd3 vc" style="border-color:rgba(245,158,11,.2)">
+  <h4 style="font-size:14px;font-weight:600;margin-bottom:12px"><i class="fas fa-compass" style="color:var(--accent);margin-right:7px"></i>Which Index Should You Choose?</h4>
+  <div class="dc"><div class="dq">How many vectors do you have?</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
+      <div style="padding:10px;border-radius:8px;background:rgba(20,184,166,.06);border:1px solid rgba(20,184,166,.15);font-size:11.5px"><strong style="color:var(--teal)">&lt; 100K</strong><br><span style="color:var(--text2)">Flat is fine. Simple, perfect accuracy, no tuning.</span></div>
+      <div style="padding:10px;border-radius:8px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);font-size:11.5px"><strong style="color:var(--accent)">100K - 10M</strong><br><span style="color:var(--text2)">HNSW. Best speed-recall balance. Default everywhere.</span></div>
+      <div style="padding:10px;border-radius:8px;background:rgba(168,85,247,.06);border:1px solid rgba(168,85,247,.15);font-size:11.5px"><strong style="color:var(--violet)">10M+</strong><br><span style="color:var(--text2)">HNSW (if memory allows) or IVF (if memory-constrained).</span></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- METADATA & HYBRID SEARCH -->
+<section class="cs" id="metadata">
+<div class="sl rv">Precision</div>
+<h2 class="st rv rd1">Metadata Filtering & Hybrid Search</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:28px" class="rv rd2">
+  <div>
+    <div class="db"><div class="dl">What is Metadata Filtering?</div><div class="dt">Each vector can carry <strong>key-value tags</strong> (metadata) — like a label on a file folder saying "Department: HR", "Type: PDF", "Date: 2024-03". Filtering means <strong>only searching within vectors that match your criteria</strong>, like telling the librarian "only look in the HR section." This dramatically reduces irrelevant results.</div></div>
+    <div class="cb" style="font-size:11.5px;margin-top:12px"><span class="cm"># Only search within HR department PDFs from 2024</span>
+index.query(
+  vector=query_emb, top_k=<span class="num">5</span>,
+  <span class="fn">filter</span>{<span class="str">"department"</span>:{<span class="str">"$eq"</span>:<span class="str">"HR"</span>},
+         <span class="str">"doc_type"</span>:{<span class="str">"$in"</span>:[<span class="str">"pdf"</span>,<span class="str">"docx"</span>]},
+         <span class="str">"year"</span>:{<span class="str">"$gte"</span>:<span class="num">2024</span>}}
+)</div>
+  </div>
+  <div>
+    <div class="db"><div class="dl">What is Hybrid Search?</div><div class="dt">Combines <strong>vector (dense) search</strong> with <strong>keyword (sparse) search</strong>. Dense search finds meaning; sparse search finds exact words. Hybrid fuses both result sets using Reciprocal Rank Fusion (RRF). This catches cases where exact terms matter (product codes "XR-500") that embeddings might miss.</div></div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+      <div style="display:flex;align-items:center;gap:10px"><div style="width:100px;text-align:right;font-size:11px;color:var(--muted)">Dense</div><div style="flex:1;height:22px;background:#1a1a1a;border-radius:6px;overflow:hidden"><div style="width:72%;height:100%;background:linear-gradient(90deg,var(--accent),#d97706);border-radius:6px;display:flex;align-items:center;padding-left:8px;font-size:9.5px;color:#000;font-weight:600">Semantic meaning</div></div></div>
+      <div style="display:flex;align-items:center;gap:10px"><div style="width:100px;text-align:right;font-size:11px;color:var(--muted)">Sparse</div><div style="flex:1;height:22px;background:#1a1a1a;border-radius:6px;overflow:hidden"><div style="width:45%;height:100%;background:linear-gradient(90deg,var(--teal),#0d9488);border-radius:6px;display:flex;align-items:center;padding-left:8px;font-size:9.5px;color:#000;font-weight:600">Exact keywords</div></div></div>
+      <div style="display:flex;align-items:center;gap:10px"><div style="width:100px;text-align:right;font-size:11px;color:var(--muted)">Fused</div><div style="flex:1;height:22px;background:#1a1a1a;border-radius:6px;overflow:hidden"><div style="width:88%;height:100%;background:linear-gradient(90deg,var(--violet),#7c3aed);border-radius:6px;display:flex;align-items:center;padding-left:8px;font-size:9.5px;color:#fff;font-weight:600">Best of both (RRF)</div></div></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- CHUNKING STRATEGIES (EXPANDED) -->
+<section class="cs" id="chunking">
+<div class="sl rv">Preprocessing</div>
+<h2 class="st rv rd1">Chunking Strategies</h2>
+<div class="db rv rd2">
+  <div class="dl">What is Chunking and Why Does It Matter?</div>
+  <div class="dt">Embedding models have a <strong>maximum input length</strong> (e.g., 512 or 8192 tokens). You can't stuff an entire 50-page PDF into one embedding. So you <strong>split documents into smaller pieces (chunks)</strong>, embed each chunk separately, and store them individually in the vector DB. <br><br><strong>Why it matters:</strong> How you split directly affects retrieval quality. A bad chunk cuts a sentence in half — the embedding loses context and the search fails. A good chunk keeps complete thoughts together so the embedding captures full meaning.</div>
+</div>
+<div class="ab rv rd2"><i class="fas fa-lightbulb"></i><strong>Analogy:</strong> Imagine cutting a long article into paragraphs before filing them. If you cut mid-sentence, the paragraph makes no sense on its own. If you cut at natural paragraph breaks, each piece is self-contained and understandable. Chunking is the same — cut at the right boundaries.</div>
+
+<div class="rv rd2" style="display:flex;gap:5px;margin:20px 0 16px;flex-wrap:wrap">
+  <button class="tbtn act" onclick="showChunk('fixed',this)">Fixed</button>
+  <button class="tbtn" onclick="showChunk('semantic',this)">Semantic</button>
+  <button class="tbtn" onclick="showChunk('recursive',this)">Recursive</button>
+  <button class="tbtn" onclick="showChunk('docaware',this)">Document-Aware</button>
+</div>
+<div class="rv rd3 vc" id="chunkDisp" style="min-height:180px"></div>
+</section>
+
+<!-- NAMESPACE & MULTI-TENANCY -->
+<section class="cs" id="namespace">
+<div class="sl rv">Isolation</div>
+<h2 class="st rv rd1">Namespace & Multi-tenancy Patterns</h2>
+<div class="db rv rd2"><div class="dl">What is Multi-tenancy in Vector DBs?</div><div class="dt">When multiple customers or teams share the same vector database, you need to <strong>isolate their data</strong> so Company A's query never sees Company B's documents. Namespaces, partitions, and separate indexes are three ways to achieve this — each with different trade-offs.</div></div>
+<div class="rv rd2" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:16px">
+  <div class="vc">
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:12px"><i class="fas fa-shield-halved" style="color:var(--accent);margin-right:7px"></i>Namespace Isolation</h4>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <div style="display:flex;align-items:center;gap:9px;padding:9px 13px;background:rgba(245,158,11,.06);border-radius:8px;border:1px solid rgba(245,158,11,.15)"><i class="fas fa-building" style="color:var(--accent);width:15px"></i><span style="font-size:12.5px">ns: <strong>acme-corp</strong> — 12,400 vectors</span></div>
+      <div style="display:flex;align-items:center;gap:9px;padding:9px 13px;background:rgba(20,184,166,.06);border-radius:8px;border:1px solid rgba(20,184,166,.15)"><i class="fas fa-building" style="color:var(--teal);width:15px"></i><span style="font-size:12.5px">ns: <strong>globex-inc</strong> — 8,200 vectors</span></div>
+      <div style="display:flex;align-items:center;gap:9px;padding:9px 13px;background:rgba(168,85,247,.06);border-radius:8px;border:1px solid rgba(168,85,247,.15)"><i class="fas fa-building" style="color:var(--violet);width:15px"></i><span style="font-size:12.5px">ns: <strong>wayne-ent</strong> — 23,100 vectors</span></div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:10px">Same index, zero cross-tenant leakage.</p>
+  </div>
+  <div class="vc">
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:12px"><i class="fas fa-code-branch" style="color:var(--teal);margin-right:7px"></i>Pattern Trade-offs</h4>
+    <div style="font-size:12px;color:var(--text2);line-height:1.8">
+      <p><strong style="color:var(--text)">Namespaces:</strong> Easiest ops, shared resources, noisy-neighbor risk.</p>
+      <p style="margin-top:6px"><strong style="color:var(--text)">Separate Indexes:</strong> Full isolation, independent scaling, higher ops.</p>
+      <p style="margin-top:6px"><strong style="color:var(--text)">Metadata Filtering:</strong> Most flexible, but ensure filters are never bypassed.</p>
+      <p style="margin-top:10px;color:var(--accent);font-size:11px">Rule: Namespaces for 10-1000 tenants. Separate indexes for 1-10 large tenants.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- CRUD OPERATIONS -->
+<section class="cs" id="crud">
+<div class="sl rv">Operations</div>
+<h2 class="st rv rd1">CRUD Operations & Index Management</h2>
+<p class="sd rv rd2" style="margin-bottom:28px">Production vector DB usage goes beyond simple upsert + query. You need idempotent writes, bulk operations, and lifecycle management.</p>
+<div class="rv rd2" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+  <div class="cb" style="font-size:11.5px"><span class="cm"># CREATE — Upsert vectors with metadata</span>
+index.<span class="fn">upsert</span>(vectors=[{<span class="str">"id"</span>:<span class="str">"doc1-chunk-0"</span>,<span class="str">"values"</span>:emb,<span class="str">"metadata"</span>:{<span class="str">"doc"</span>:<span class="str">"handbook.pdf"</span>,<span class="str">"dept"</span>:<span class="str">"HR"</span>}}],namespace=<span class="str">"acme"</span>)</div>
+  <div class="cb" style="font-size:11.5px"><span class="cm"># READ — Query with filters</span>
+res=index.<span class="fn">query</span>(vector=q,top_k=<span class="num">5</span>,include_metadata=<span class="kw">True</span>,filter={<span class="str">"dept"</span>:{<span class="str">"$eq"</span>:<span class="str">"HR"</span>}},namespace=<span class="str">"acme"</span>)</div>
+  <div class="cb" style="font-size:11.5px"><span class="cm"># UPDATE — Replace vector + metadata</span>
+index.<span class="fn">update</span>(id=<span class="str">"doc1-chunk-0"</span>,values=new_emb,metadata={<span class="str">"dept"</span>:<span class="str">"People"</span>},namespace=<span class="str">"acme"</span>)</div>
+  <div class="cb" style="font-size:11.5px"><span class="cm"># DELETE — By ID or by metadata filter</span>
+index.<span class="fn">delete</span>(filter={<span class="str">"doc"</span>:{<span class="str">"$eq"</span>:<span class="str">"handbook.pdf"</span>}},namespace=<span class="str">"acme"</span>)</div>
+</div>
+<div class="rv rd3 vc" style="margin-top:14px">
+  <h4 style="font-size:13px;font-weight:600;margin-bottom:8px"><i class="fas fa-industry" style="color:var(--accent);margin-right:7px"></i>Production Checklist</h4>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;font-size:11.5px;color:var(--text2)">
+    <div><i class="fas fa-check" style="color:var(--teal);margin-right:5px;font-size:9px"></i>Idempotent upserts</div>
+    <div><i class="fas fa-check" style="color:var(--teal);margin-right:5px;font-size:9px"></i>Bulk batches (100-500)</div>
+    <div><i class="fas fa-check" style="color:var(--teal);margin-right:5px;font-size:9px"></i>Index versioning</div>
+    <div><i class="fas fa-check" style="color:var(--teal);margin-right:5px;font-size:9px"></i>Dimension validation</div>
+    <div><i class="fas fa-check" style="color:var(--teal);margin-right:5px;font-size:9px"></i>Latency monitoring</div>
+    <div><i class="fas fa-check" style="color:var(--teal);margin-right:5px;font-size:9px"></i>Graceful degradation</div>
+  </div>
+</div>
+</section>
+
+<!-- RAG PIPELINE -->
+<section class="cs" id="pipeline">
+<div class="sl rv">Architecture</div>
+<h2 class="st rv rd1">RAG Pipeline Anatomy</h2>
+<div class="db rv rd2"><div class="dl">What is RAG?</div><div class="dt"><strong>Retrieval-Augmented Generation</strong> is a technique that gives an LLM access to external knowledge. Instead of relying only on what the model memorized during training, RAG <strong>fetches relevant documents from a knowledge base</strong> and includes them in the prompt. This lets the LLM answer questions about your private data — documents it has never seen before.</div></div>
+<p class="sd rv rd2" style="margin-bottom:32px">The canonical pipeline has five stages. Click play to watch each step activate.</p>
+<div class="rv rd2" style="margin-bottom:28px">
+  <div style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:0" id="pFlow">
+    <div class="pn" id="p1" title="Ingest"><i class="fas fa-file-import"></i></div><div class="pc" id="c1"></div>
+    <div class="pn" id="p2" title="Embed"><i class="fas fa-cube"></i></div><div class="pc" id="c2"></div>
+    <div class="pn" id="p3" title="Index"><i class="fas fa-database"></i></div><div class="pc" id="c3"></div>
+    <div class="pn" id="p4" title="Retrieve"><i class="fas fa-magnifying-glass"></i></div><div class="pc" id="c4"></div>
+    <div class="pn" id="p5" title="Generate"><i class="fas fa-wand-magic-sparkles"></i></div>
+  </div>
+  <div style="text-align:center;margin-top:18px"><button onclick="playPipe()" id="ppBtn" style="padding:9px 22px;border-radius:8px;background:var(--accent);color:#000;border:none;font-weight:600;font-size:12.5px;cursor:pointer;font-family:'DM Sans'"><i class="fas fa-play" style="margin-right:5px;font-size:10px"></i>Play Pipeline</button></div>
+  <div id="pDesc" style="margin-top:16px;text-align:center;min-height:50px;font-size:13px;color:var(--text2);transition:opacity .3s"></div>
+</div>
+<div class="rv rd3 vc">
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;font-size:10.5px">
+    <div><div style="color:var(--accent);font-weight:600;margin-bottom:5px">Ingest</div><p style="color:var(--text2);line-height:1.6">Load docs from S3, SharePoint. Parse PDF/DOCX. Extract text + metadata.</p></div>
+    <div><div style="color:var(--accent);font-weight:600;margin-bottom:5px">Embed</div><p style="color:var(--text2);line-height:1.6">Convert chunks to vectors via embedding model (e.g., text-embedding-3-small).</p></div>
+    <div><div style="color:var(--accent);font-weight:600;margin-bottom:5px">Index</div><p style="color:var(--text2);line-height:1.6">Store vectors + metadata in vector DB. Build HNSW graph. Assign namespace.</p></div>
+    <div><div style="color:var(--accent);font-weight:600;margin-bottom:5px">Retrieve</div><p style="color:var(--text2);line-height:1.6">Embed query, search vector DB, apply filters, re-rank with cross-encoder.</p></div>
+    <div><div style="color:var(--accent);font-weight:600;margin-bottom:5px">Generate</div><p style="color:var(--text2);line-height:1.6">Inject context into LLM prompt. Generate answer with citations. Apply guardrails.</p></div>
+  </div>
+</div>
+</section>
+
+<!-- NAIVE RAG -->
+<section class="cs" id="naive">
+<div class="sl rv">Problem</div>
+<h2 class="st rv rd1">Naive RAG and Its Limitations</h2>
+<div class="db rv rd2"><div class="dl">What is Naive RAG?</div><div class="dt">The simplest possible RAG: <strong>chunk document → embed all chunks → for each query, retrieve top-k → stuff them into the LLM prompt → get answer</strong>. No query transformation, no re-ranking, no smart chunking. It works for demos but breaks in production.</div></div>
+<p class="sd rv rd2" style="margin-bottom:28px">Here are the four most common failure modes:</p>
+<div class="rv rd2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+  <div class="vc" style="border-left:3px solid var(--cherry)"><h4 style="font-size:13.5px;font-weight:600;margin-bottom:7px">Lost in the Middle</h4><p style="font-size:12px;color:var(--text2);line-height:1.6">LLMs pay less attention to context in the <em>middle</em> of long prompts. Chunks 4-7 of top-10 are effectively invisible.</p></div>
+  <div class="vc" style="border-left:3px solid var(--cherry)"><h4 style="font-size:13.5px;font-weight:600;margin-bottom:7px">Mismatched Granularity</h4><p style="font-size:12px;color:var(--text2);line-height:1.6">A 512-token chunk has the answer but lacks surrounding context. Or the answer spans two chunks and neither alone suffices.</p></div>
+  <div class="vc" style="border-left:3px solid var(--cherry)"><h4 style="font-size:13.5px;font-weight:600;margin-bottom:7px">Query-Vocabulary Gap</h4><p style="font-size:12px;color:var(--text2);line-height:1.6">User asks "how do I take time off?" but docs say "PTO request procedure." Embedding may not bridge this without query rewriting.</p></div>
+  <div class="vc" style="border-left:3px solid var(--cherry)"><h4 style="font-size:13.5px;font-weight:600;margin-bottom:7px">Noisy Retrieval</h4><p style="font-size:12px;color:var(--text2);line-height:1.6">Top-k returns irrelevant chunks that confuse the LLM. Without re-ranking or score thresholds, garbage-in-garbage-out.</p></div>
+</div>
+</section>
+
+<!-- ADVANCED RAG -->
+<section class="cs" id="advanced">
+<div class="sl rv">Evolution</div>
+<h2 class="st rv rd1">Advanced RAG Techniques</h2>
+<p class="sd rv rd2" style="margin-bottom:28px">These techniques fix naive RAG failures by operating on the query and retrieval process before context reaches the LLM.</p>
+<div class="rv rd2" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+  <div class="vc">
+    <div style="width:34px;height:34px;border-radius:8px;background:rgba(245,158,11,.1);display:flex;align-items:center;justify-content:center;margin-bottom:12px"><i class="fas fa-pen" style="color:var(--accent);font-size:13px"></i></div>
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:6px">Query Rewriting</h4>
+    <p style="font-size:11.5px;color:var(--text2);line-height:1.6;margin-bottom:10px">Use a small LLM to rewrite the user's ambiguous query into a specific, self-contained search query.</p>
+    <div style="padding:9px;background:#0d0d0d;border-radius:6px;font-size:10.5px"><span style="color:var(--muted)">User:</span> <span style="color:var(--text)">"what's our policy?"</span><br><span style="color:var(--muted)">Rewritten:</span> <span style="color:var(--accent)">"company remote work and PTO policy for full-time employees"</span></div>
+  </div>
+  <div class="vc">
+    <div style="width:34px;height:34px;border-radius:8px;background:rgba(20,184,166,.1);display:flex;align-items:center;justify-content:center;margin-bottom:12px"><i class="fas fa-ghost" style="color:var(--teal);font-size:13px"></i></div>
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:6px">HyDE</h4>
+    <p style="font-size:11.5px;color:var(--text2);line-height:1.6;margin-bottom:10px">Ask LLM to generate a hypothetical answer, then embed <em>that answer</em> (not the question) to search.</p>
+    <div style="padding:9px;background:#0d0d0d;border-radius:6px;font-size:10.5px"><span style="color:var(--muted)">Query:</span> <span style="color:var(--text)">"vacation rules"</span><br><span style="color:var(--muted)">HyDE:</span> <span style="color:var(--teal)">"Employees receive 20 days paid leave..."</span></div>
+  </div>
+  <div class="vc">
+    <div style="width:34px;height:34px;border-radius:8px;background:rgba(168,85,247,.1);display:flex;align-items:center;justify-content:center;margin-bottom:12px"><i class="fas fa-clone" style="color:var(--violet);font-size:13px"></i></div>
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:6px">Multi-Query</h4>
+    <p style="font-size:11.5px;color:var(--text2);line-height:1.6;margin-bottom:10px">Generate multiple variant queries, retrieve for each, then union and deduplicate results.</p>
+    <div style="padding:9px;background:#0d0d0d;border-radius:6px;font-size:10.5px"><span style="color:var(--muted)">Original:</span> <span style="color:var(--text)">"security practices"</span><br><span style="color:var(--violet)">+ "data protection policies"</span><br><span style="color:var(--violet)">+ "compliance requirements"</span></div>
+  </div>
+</div>
+</section>
+
+<!-- RE-RANKING -->
+<section class="cs" id="reranking">
+<div class="sl rv">Refinement</div>
+<h2 class="st rv rd1">Re-ranking with Cross-Encoders</h2>
+<div class="db rv rd2"><div class="dl">What is Re-ranking?</div><div class="dt">Your first search (bi-encoder) is fast but imprecise — it embeds query and document <strong>separately</strong>. A cross-encoder reads the <strong>query AND document together</strong> as a pair, producing a much more accurate relevance score. But it's too slow to run on millions of documents. Solution: use bi-encoder to get top-50 candidates, then cross-encoder to re-rank those 50 down to top-5.</div></div>
+<div class="ab rv rd2"><i class="fas fa-lightbulb"></i><strong>Analogy:</strong> Bi-encoder = a recruiter skimming 1000 resumes in 5 minutes (fast, rough). Cross-encoder = the hiring manager doing 30-minute deep interviews with the top 10 candidates (slow, precise). You need both.</div>
+<div class="rv rd2" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:16px">
+  <div>
+    <h4 style="font-size:12px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Before Re-ranking</h4>
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <div class="rc" style="padding:9px 12px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:11.5px;color:var(--text)">Engineering microservices</span><span style="font-size:10.5px;color:var(--muted)">0.87</span></div><div class="sb"><div class="sbf" style="width:87%;background:var(--muted)"></div></div></div>
+      <div class="rc" style="padding:9px 12px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:11.5px;color:var(--text)">Remote work policy</span><span style="font-size:10.5px;color:var(--muted)">0.84</span></div><div class="sb"><div class="sbf" style="width:84%;background:var(--muted)"></div></div></div>
+      <div class="rc" style="padding:9px 12px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:11.5px;color:var(--text)">Password policy</span><span style="font-size:10.5px;color:var(--muted)">0.81</span></div><div class="sb"><div class="sbf" style="width:81%;background:var(--muted)"></div></div></div>
+      <div class="rc" style="padding:9px 12px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:11.5px;color:var(--text)">Q3 revenue</span><span style="font-size:10.5px;color:var(--muted)">0.78</span></div><div class="sb"><div class="sbf" style="width:78%;background:var(--muted)"></div></div></div>
+    </div>
+  </div>
+  <div>
+    <h4 style="font-size:12px;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">After Re-ranking</h4>
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <div class="rc hl" style="padding:9px 12px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:11.5px;color:var(--accent)">Remote work policy <i class="fas fa-arrow-up" style="font-size:8px"></i></span><span style="font-size:10.5px;color:var(--accent);font-weight:600">0.94</span></div><div class="sb"><div class="sbf" style="width:94%;background:var(--accent)"></div></div></div>
+      <div class="rc hl" style="padding:9px 12px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:11.5px;color:var(--accent)">Password policy <i class="fas fa-arrow-up" style="font-size:8px"></i></span><span style="font-size:10.5px;color:var(--accent);font-weight:600">0.89</span></div><div class="sb"><div class="sbf" style="width:89%;background:var(--accent)"></div></div></div>
+      <div class="rc" style="padding:9px 12px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:11.5px;color:var(--text)">Engineering microservices <i class="fas fa-arrow-down" style="font-size:8px;color:var(--cherry)"></i></span><span style="font-size:10.5px;color:var(--muted)">0.72</span></div><div class="sb"><div class="sbf" style="width:72%;background:var(--cherry)"></div></div></div>
+      <div class="rc" style="padding:9px 12px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:11.5px;color:var(--text)">Q3 revenue <i class="fas fa-arrow-down" style="font-size:8px;color:var(--cherry)"></i></span><span style="font-size:10.5px;color:var(--muted)">0.31</span></div><div class="sb"><div class="sbf" style="width:31%;background:var(--cherry)"></div></div></div>
+    </div>
+  </div>
+</div>
+<div class="rv rd3" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:14px">
+  <div style="padding:9px 14px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:11.5px"><span style="color:var(--muted)">Models:</span> <span style="color:var(--text)">Cohere Rerank v3, bge-reranker-large, cross-encoder/ms-marco-MiniLM</span></div>
+  <div style="padding:9px 14px;border-radius:8px;background:var(--card);border:1px solid var(--border);font-size:11.5px"><span style="color:var(--muted)">Pattern:</span> <span style="color:var(--text)">Retrieve top-50 → Re-rank → Take top-5 → Generate</span></div>
+</div>
+</section>
+
+<!-- PARENT-DOCUMENT RETRIEVAL -->
+<section class="cs" id="parent-doc">
+<div class="sl rv">Context</div>
+<h2 class="st rv rd1">Parent-Document & Hierarchical Retrieval</h2>
+<div class="db rv rd2"><div class="dl">What is Parent-Document Retrieval?</div><div class="dt">Store <strong>small chunks for precise search</strong> (so the embedding is focused), but keep a <strong>reference to the larger parent document</strong>. When a small chunk matches your query, instead of sending just that tiny chunk to the LLM, you <strong>expand it to the full parent</strong> for rich context. This solves the granularity problem — you get precise matching <em>and</em> full context.</div></div>
+<div class="ab rv rd2"><i class="fas fa-lightbulb"></i><strong>Analogy:</strong> A book's index says "remote work — see page 42." The index entry (small chunk) is precise enough to find the right page, but you read the <em>entire page</em> (parent document) for full understanding, not just the index line.</div>
+<div class="rv rd2 vc" style="padding:26px;margin-top:16px">
+  <div style="display:flex;gap:20px;align-items:stretch;flex-wrap:wrap">
+    <div style="flex:1;min-width:220px;border:2px solid var(--border);border-radius:12px;padding:14px;position:relative">
+      <div style="position:absolute;top:-9px;left:14px;background:var(--card);padding:0 7px;font-size:10px;color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:1px">Parent Document</div>
+      <p style="font-size:11.5px;color:var(--text2);line-height:1.7;font-style:italic;color:var(--muted)">"Employee Benefits & Policies — covers health insurance, retirement plans, paid time off, remote work arrangements, and professional development..."</p>
+    </div>
+    <div style="display:flex;align-items:center;font-size:18px;color:var(--muted)"><i class="fas fa-arrows-left-right"></i></div>
+    <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:7px">
+      <div style="font-size:10px;color:var(--teal);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">Child Chunks (indexed in vector DB)</div>
+      <div class="chk" style="border-color:var(--border);font-size:10.5px;color:var(--text2)">Chunk 0: "All full-time employees are entitled to 20 days of paid annual leave..."</div>
+      <div class="chk" style="border-color:var(--accent);background:rgba(245,158,11,.04);font-size:10.5px;color:var(--accent)">Chunk 1: "Remote work policy allows up to 3 days/week..." <span style="font-size:8.5px;background:rgba(245,158,11,.2);padding:1px 5px;border-radius:3px;margin-left:3px">MATCHED</span></div>
+      <div class="chk" style="border-color:var(--border);font-size:10.5px;color:var(--text2)">Chunk 2: "Health insurance through BlueCross includes medical, dental..."</div>
+    </div>
+  </div>
+  <div style="margin-top:16px;padding:10px 14px;background:rgba(20,184,166,.06);border:1px solid rgba(20,184,166,.15);border-radius:8px;font-size:11.5px;color:var(--teal)"><i class="fas fa-lightbulb" style="margin-right:5px"></i><strong>Result:</strong> Chunk 1 matched → expanded to full parent → LLM receives rich context about all benefits, not just the remote work sentence.</div>
+</div>
+</section>
+
+<!-- AGENTIC RAG -->
+<section class="cs" id="agentic">
+<div class="sl rv">Frontier</div>
+<h2 class="st rv rd1">Agentic RAG</h2>
+<div class="db rv rd2"><div class="dl">What is Agentic RAG?</div><div class="dt">Instead of retrieval being a <strong>fixed preprocessing step</strong> that always runs before the LLM, the LLM agent <strong>decides when, whether, and how to retrieve</strong>. It has retrieval as a <strong>tool</strong> it can call — just like it might call a calculator or web search. The agent can query multiple sources, decompose complex questions, evaluate results, and retry if the first retrieval wasn't good enough.</div></div>
+<div class="ab rv rd2"><i class="fas fa-lightbulb"></i><strong>Analogy:</strong> Standard RAG = a student who always checks the textbook before answering every question, even "what is 2+2?". Agentic RAG = a student who decides <em>when</em> to check the textbook. Simple math? No need. Complex policy question? Check the book, evaluate if the answer is sufficient, maybe check a second source.</div>
+<div class="rv rd2 vc" style="padding:24px;margin-top:16px">
+  <div style="display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin-bottom:20px">
+    <div style="width:72px;height:72px;border-radius:50%;background:rgba(245,158,11,.1);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center"><i class="fas fa-brain" style="font-size:26px;color:var(--accent)"></i></div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <div style="display:flex;align-items:center;gap:7px"><div style="width:110px;height:26px;border-radius:6px;background:rgba(20,184,166,.1);border:1px solid rgba(20,184,166,.3);display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--teal)">Vector DB</div><i class="fas fa-arrow-left" style="color:var(--muted);font-size:9px"></i></div>
+      <div style="display:flex;align-items:center;gap:7px"><div style="width:110px;height:26px;border-radius:6px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--violet)">SQL Database</div><i class="fas fa-arrow-left" style="color:var(--muted);font-size:9px"></i></div>
+      <div style="display:flex;align-items:center;gap:7px"><div style="width:110px;height:26px;border-radius:6px;background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.3);display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--sky)">Web Search</div><i class="fas fa-arrow-left" style="color:var(--muted);font-size:9px"></i></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div><h4 style="font-size:13px;font-weight:600;margin-bottom:8px">Standard RAG</h4><div style="font-size:11.5px;color:var(--text2);line-height:1.7">Query → Retrieve (always) → Generate<br><br><span style="color:var(--cherry)">Problem:</span> Wastes retrieval on factual questions the LLM already knows. Can't combine multiple sources.</div></div>
+    <div><h4 style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--accent)">Agentic RAG</h4><div style="font-size:11.5px;color:var(--text2);line-height:1.7">Query → Agent decides: retrieve? which source? how many times?<br><br><span style="color:var(--teal)">Advantage:</span> Tool-use paradigm. Agent calls retrieval as a function, evaluates, can retry or pivot.</div></div>
+  </div>
+</div>
+</section>
+
+<!-- INTERACTIVE DEMO -->
+<section class="cs" id="demo" style="padding-bottom:100px">
+<div class="sl rv" style="color:var(--accent)">Hands-On</div>
+<h2 class="st rv rd1">Interactive Demo: Company Document RAG</h2>
+<p class="sd rv rd2" style="margin-bottom:28px">Simulated end-to-end RAG: ingest company documents into a vector database, then query them and watch the full pipeline execute.</p>
+<div class="rv rd2" style="display:flex;flex-direction:column;gap:18px">
+
+  <!-- Step 1: Document Selection -->
+  <div class="vc" id="dIngest">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h4 style="font-size:14px;font-weight:600"><i class="fas fa-file-circle-plus" style="color:var(--accent);margin-right:7px"></i>Step 1: Select Company Documents</h4>
+      <span id="dCnt" style="font-size:11.5px;color:var(--muted)">0 selected</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px" id="dChips"></div>
+    <button onclick="doIngest()" id="iBtn" disabled style="padding:9px 22px;border-radius:8px;background:var(--accent);color:#000;border:none;font-weight:600;font-size:12.5px;cursor:pointer;font-family:'DM Sans';opacity:.4;transition:all .2s"><i class="fas fa-upload" style="margin-right:5px"></i>Ingest into Vector DB</button>
+    <div id="iProg" style="display:none;margin-top:14px"></div>
+  </div>
+
+  <!-- Step 2: Vector Space + Query -->
+  <div class="vc" id="dQuery" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h4 style="font-size:14px;font-weight:600"><i class="fas fa-magnifying-glass-chart" style="color:var(--teal);margin-right:7px"></i>Step 2: Query Your Documents</h4>
+      <span style="font-size:10.5px;color:var(--teal)"><i class="fas fa-circle" style="font-size:5px;margin-right:3px"></i>Vector DB ready</span>
+    </div>
+    <div style="margin-bottom:18px;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:#0a0a0a">
+      <canvas id="vC" width="800" height="320" style="width:100%;display:block"></canvas>
+    </div>
+    <div style="margin-bottom:10px">
+      <span style="font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Try these:</span>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px" id="sQ"></div>
+    </div>
+    <div style="display:flex;gap:9px">
+      <input type="text" id="qIn" placeholder="Ask a question about your company documents..." style="flex:1;padding:11px 15px;border-radius:10px;background:#0d0d0d;border:1px solid var(--border);color:var(--text);font-size:13.5px;font-family:'DM Sans';outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      <button onclick="doQuery()" id="qBtn" style="padding:11px 22px;border-radius:10px;background:var(--teal);color:#000;border:none;font-weight:600;font-size:12.5px;cursor:pointer;font-family:'DM Sans';white-space:nowrap"><i class="fas fa-paper-plane" style="margin-right:5px"></i>Query</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Pipeline -->
+  <div class="vc" id="dPipe" style="display:none">
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:14px"><i class="fas fa-gears" style="color:var(--violet);margin-right:7px"></i>Pipeline Execution</h4>
+    <div id="pSteps" style="display:flex;flex-direction:column;gap:7px"></div>
+  </div>
+
+  <!-- Step 4: Retrieved Chunks -->
+  <div class="vc" id="dRet" style="display:none">
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:14px"><i class="fas fa-layer-group" style="color:var(--accent);margin-right:7px"></i>Retrieved & Re-ranked Chunks</h4>
+    <div id="rChunks"></div>
+  </div>
+
+  <!-- Step 5: Answer -->
+  <div class="vc" id="dAns" style="display:none;border-color:rgba(20,184,166,.3)">
+    <h4 style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--teal)"><i class="fas fa-wand-magic-sparkles" style="margin-right:7px"></i>Generated Answer</h4>
+    <div id="gAns" style="font-size:13.5px;line-height:1.8;color:var(--text2)"></div>
+  </div>
+</div>
+</section>
+
+</main>
+
+<script>
+/* ========== DATA ========== */
+const docs=[
+{id:'d1',name:'Employee Handbook 2024.pdf',type:'pdf',dept:'HR',color:'#f59e0b',cx:130,cy:120,
+chunks:['All full-time employees are entitled to 20 days of paid annual leave. Leave must be requested at least 2 weeks in advance through the HR portal. Unused leave may carry over up to 5 days.','The company provides comprehensive health insurance through BlueCross BlueShield. Coverage includes medical, dental, and vision plans. Employees cover 20% of premiums; company covers 80%.','Remote work policy allows employees to work from home up to 3 days per week under a hybrid schedule. This must be coordinated with your direct manager and requires a signed remote work agreement.','Performance reviews are conducted bi-annually in June and December. Employees complete a self-evaluation before the manager assessment. Ratings range from 1 to 5.','The company 401(k) matching contribution is 4% of base salary. Vesting follows a 2-year graded schedule: 50% after year 1, 100% after year 2.']},
+{id:'d2',name:'Engineering Architecture Guide.docx',type:'docx',dept:'Engineering',color:'#14b8a6',cx:480,cy:95,
+chunks:['Our microservices architecture uses Kubernetes for orchestration. Each service is deployed as an independent container with horizontal pod auto-scaling based on CPU and memory thresholds.','The API gateway handles JWT authentication, rate limiting at 1000 requests per minute per client, and request routing to downstream services.','Database strategy follows polyglot persistence: PostgreSQL for relational data, Redis for session caching, and Elasticsearch for full-text search.','Event-driven communication between services uses Apache Kafka. All state changes are published as domain events to the appropriate topic.','CI/CD pipeline runs on GitHub Actions. All pull requests require 2 approvals and passing tests before merge to main.']},
+{id:'d3',name:'Q3 Financial Report.pdf',type:'pdf',dept:'Finance',color:'#ef4444',cx:320,cy:250,
+chunks:['Q3 2024 revenue reached $42.5M, representing a 23% year-over-year increase. SaaS subscription revenue accounted for 78% of total revenue.','Gross margin improved to 72% from 68% in Q3 2023, driven by infrastructure cost optimization through reserved instances.','Operating expenses totaled $31.2M, with R&D investment at $14.8M (35% of revenue), reflecting continued commitment to product development.','Cash position at quarter end was $89M with zero debt. Free cash flow was $8.3M, a 45% improvement over the prior year quarter.','Customer acquisition cost decreased to $12,400 from $15,200 year-over-year, while lifetime value increased to $98,000, improving LTV:CAC ratio to 7.9x.']},
+{id:'d4',name:'Product Roadmap 2025.docx',type:'docx',dept:'Product',color:'#a855f7',cx:640,cy:210,
+chunks:['Q1 2025 focus: Launch AI-powered semantic search feature. Target: reduce average search time from 8 seconds to under 2 seconds.','Q2 2025: Release collaborative workspace feature enabling real-time document editing with conflict resolution.','Enterprise tier expansion planned for Q3 2025 with SSO/SAML authentication and advanced audit logs. Pricing target: $299/seat/month.','Mobile app v2.0 scheduled for Q4 2025 with offline mode, push notifications, and biometric authentication.','Technical debt reduction sprint allocated 20% of engineering capacity each quarter to migrate legacy components.']},
+{id:'d5',name:'Security Compliance Policy.pdf',type:'pdf',dept:'Security',color:'#38bdf8',cx:140,cy:260,
+chunks:['All employees must complete annual security awareness training. Quarterly phishing simulation tests are mandatory with remediation for failures.','SOC 2 Type II compliance is maintained with annual third-party audits by Deloitte. All data handling must align with trust services criteria.','Password policy requires minimum 12 characters with uppercase, lowercase, number, and special character. MFA is mandatory for all systems.','Incident response SLA: Detection within 1 hour, initial assessment within 4 hours, containment within 24 hours, full remediation within 72 hours.','Data classification follows 4 tiers: Public, Internal, Confidential, and Restricted. AES-256 at rest and TLS 1.3 in transit for Confidential+.']}
+];
+
+const qData=[
+{text:'What is the company remote work policy?',qp:{x:155,y:135},
+steps:['Embedding query vector (1536-dim)...','HNSW search — found 8 candidates','No metadata filters applied','Cross-encoder re-ranking 8 candidates','Top 3 chunks selected for LLM context'],
+results:[{d:'d1',ci:2,s:.91,rr:.96},{d:'d1',ci:0,s:.76,rr:.74},{d:'d5',ci:2,s:.68,rr:.61}],
+answer:'According to the Employee Handbook 2024, the company permits employees to work from home up to 3 days per week under a hybrid schedule. This requires coordination with your direct manager and a signed remote work agreement. Additionally, all full-time employees are entitled to 20 days of paid annual leave, requestable at least 2 weeks in advance through the HR portal, with up to 5 unused days eligible for carryover.'},
+{text:'How does engineering handle inter-service communication?',qp:{x:470,y:110},
+steps:['Embedding query vector...','HNSW search — 10 candidates near Engineering cluster','No metadata filters','Cross-encoder re-ranking applied','Top 3 chunks passed to LLM'],
+results:[{d:'d2',ci:3,s:.94,rr:.97},{d:'d2',ci:0,s:.83,rr:.81},{d:'d2',ci:1,s:.79,rr:.69}],
+answer:'Per the Engineering Architecture Guide, inter-service communication uses an event-driven pattern with Apache Kafka. All state changes are published as domain events to the appropriate Kafka topics, and consumers use consumer groups for parallel processing. The architecture is built on microservices orchestrated by Kubernetes, with the API gateway managing JWT authentication, rate limiting (1000 req/min per client), and request routing.'},
+{text:'What were the key financial metrics in Q3 2024?',qp:{x:335,y:245},
+steps:['Embedding query vector...','HNSW search — 7 candidates in Finance cluster','No metadata filters','Cross-encoder re-ranking complete','Top 3 chunks assembled for generation'],
+results:[{d:'d3',ci:0,s:.96,rr:.98},{d:'d3',ci:1,s:.88,rr:.85},{d:'d3',ci:4,s:.72,rr:.76}],
+answer:'Q3 2024 financial highlights: Revenue reached $42.5M, a 23% YoY increase, with SaaS subscriptions comprising 78% of total revenue. Gross margin improved to 72% (up from 68% in Q3 2023). Cash position was $89M with zero debt, generating $8.3M in free cash flow (45% YoY improvement). CAC dropped to $12,400 while LTV rose to $98,000, yielding an LTV:CAC ratio of 7.9x.'},
+{text:'What security measures protect company data?',qp:{x:160,y:250},
+steps:['Embedding query vector...','HNSW search — 9 candidates across Security/HR clusters','No metadata filters','Cross-encoder re-ranking prioritized data protection','Top 3 chunks delivered to LLM'],
+results:[{d:'d5',ci:4,s:.93,rr:.97},{d:'d5',ci:2,s:.86,rr:.84},{d:'d5',ci:1,s:.80,rr:.78}],
+answer:'The Security Compliance Policy establishes multiple protection layers. Data is classified into 4 tiers (Public, Internal, Confidential, Restricted) with AES-256 encryption at rest and TLS 1.3 in transit for Confidential+ data. MFA is mandatory across all systems. SOC 2 Type II compliance is maintained with annual Deloitte audits. The incident response SLA mandates detection within 1 hour, containment within 24 hours, and full remediation within 72 hours.'}
+];
+
+/* Generate chunk 2D positions */
+const cps=[];
+docs.forEach(d=>{d.chunks.forEach((_,i)=>{const a=(i/d.chunks.length)*Math.PI*2,r=28+Math.random()*38;cps.push({did:d.id,ci:i,x:d.cx+Math.cos(a)*r+(Math.random()-.5)*18,y:d.cy+Math.sin(a)*r+(Math.random()-.5)*18,color:d.color})})});
+
+let selDocs=new Set(),isIdx=false,af=null,hovC=null,curQ=null;
+
+/* ========== SIDEBAR ========== */
+const sb=document.getElementById('sb'),mc=document.getElementById('mc'),tgb=document.getElementById('tgb');
+tgb.onclick=()=>sb.classList.toggle('open');
+const sLinks=document.querySelectorAll('.sidebar-link');
+sLinks.forEach(l=>l.addEventListener('click',()=>{if(innerWidth<=900)sb.classList.remove('open')}));
+const secs=document.querySelectorAll('.cs');
+const iObs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){const id=e.target.id;sLinks.forEach(l=>l.classList.remove('active'));const a=document.querySelector(`.sidebar-link[href="#${id}"]`);if(a)a.classList.add('active')}})},{rootMargin:'-20% 0px -60% 0px'});
+secs.forEach(s=>iObs.observe(s));
+
+/* ========== REVEAL ========== */
+const rObs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('vis')})},{threshold:.08});
+document.querySelectorAll('.rv').forEach(el=>rObs.observe(el));
+
+/* ========== HERO CANVAS ========== */
+(function(){const c=document.getElementById('hc'),x=c.getContext('2d');let ds=[];function rz(){c.width=c.offsetWidth*devicePixelRatio;c.height=c.offsetHeight*devicePixelRatio;x.scale(devicePixelRatio,devicePixelRatio);ds=Array.from({length:55},()=>({x:Math.random()*c.offsetWidth,y:Math.random()*c.offsetHeight,vx:(Math.random()-.5)*.4,vy:(Math.random()-.5)*.4,r:Math.random()*2+1}))}rz();addEventListener('resize',rz);function dr(){x.clearRect(0,0,c.offsetWidth,c.offsetHeight);ds.forEach(d=>{d.x+=d.vx;d.y+=d.vy;if(d.x<0||d.x>c.offsetWidth)d.vx*=-1;if(d.y<0||d.y>c.offsetHeight)d.vy*=-1;x.beginPath();x.arc(d.x,d.y,d.r,0,Math.PI*2);x.fillStyle='rgba(245,158,11,0.35)';x.fill()});for(let i=0;i<ds.length;i++)for(let j=i+1;j<ds.length;j++){const dx=ds[i].x-ds[j].x,dy=ds[i].y-ds[j].y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<110){x.beginPath();x.moveTo(ds[i].x,ds[i].y);x.lineTo(ds[j].x,ds[j].y);x.strokeStyle=`rgba(245,158,11,${.1*(1-dist/110)})`;x.stroke()}}requestAnimationFrame(dr)}dr()})();
+
+/* ========== CHUNKING TABS ========== */
+const sampleTxt=`## Employee Benefits Overview\n\nAll full-time employees are entitled to 20 days of paid annual leave per calendar year. Leave requests must be submitted through the HR portal at least two weeks in advance. Unused leave may carry over up to 5 days into the next year.\n\n### Health Insurance\n\nThe company provides comprehensive health insurance coverage through BlueCross BlueShield. This includes medical, dental, and vision plans. Employees are responsible for 20% of premium costs; the company covers the remaining 80%.\n\n### Remote Work\n\nRemote work is permitted up to three days per week under a hybrid arrangement. Employees must have a signed remote work agreement on file and coordinate schedules with their direct manager.`;
+
+const cData={
+fixed:{label:'Fixed Chunking (200 tokens)',color:'#f59e0b',
+def:'Cuts the document into equal-sized pieces (e.g., 200 tokens each) regardless of content. Like using scissors to cut a rope into equal lengths — you cut at a fixed interval whether or not it makes sense at that spot.',
+analogy:'Like cutting a loaf of bread into exactly 2cm slices. Some slices might end in the middle of a raisin — that slice is less useful than one that contains a whole raisin.',
+pros:['Simple to implement — no AI needed','Predictable chunk sizes — easy to manage memory and context windows','Works well for uniform documents (logs, records)'],
+cons:['Can cut mid-sentence or mid-paragraph, breaking meaning','No awareness of document structure — headings, tables get mangled','The same sentence might appear in two adjacent chunks (wasted space)'],
+use:'Use when: Documents are fairly uniform (JSON records, log lines), or you need the simplest possible starting point and will improve later.'},
+semantic:{label:'Semantic Chunking',color:'#14b8a6',
+def:'Uses an embedding model to measure the <strong>semantic similarity</strong> between sentences. When the meaning shifts significantly between two consecutive sentences, that is where the cut happens. Chunks are based on <em>meaning boundaries</em>, not character counts.',
+analogy:'Like a smart editor who reads each sentence and says "this next sentence starts talking about something different — new paragraph here." The cuts follow the natural flow of ideas.',
+pros:['Chunks are coherent and self-contained — each captures one complete topic','No broken sentences or split concepts','Produces high-quality embeddings because each chunk has clear, focused meaning'],
+cons:['Requires running an embedding model during chunking — slower and more expensive','Chunk sizes are unpredictable — some very small, some very large','Harder to control for context window limits'],
+use:'Use when: Document quality matters more than processing speed, and you have the compute budget. Great for knowledge bases, FAQs, and content that covers multiple distinct topics.'},
+recursive:{label:'Recursive Character Splitting',color:'#a855f7',
+def:'Tries to split on <strong>larger boundaries first</strong> (double newlines = paragraphs), then falls back to smaller ones (single newlines = lines), then spaces, then characters. It is recursive because it keeps trying smaller separators until the chunk fits the target size. An <strong>overlap</strong> parameter duplicates the last N tokens into the next chunk so no context is lost at boundaries.',
+analogy:'Like cutting a cake: first try cutting along the frosting lines (natural divisions). If a piece is still too big, cut it in half. You always prefer the natural cut over a forced one. The overlap is like leaving a little frosting bridge between pieces.',
+pros:['Respects document structure when possible — cuts at paragraphs first, then falls back','Overlap prevents loss of context at boundaries — the end of one chunk appears at the start of the next','Good balance of simplicity and quality — the most commonly used strategy in practice'],
+cons:['Overlap means some text is duplicated across chunks (wasted storage, slightly inflated search results)','Still ultimately falls back to character-level cuts for very long paragraphs','Overlap size is a tuning parameter — too small loses context, too large wastes space'],
+use:'Use when: This is the <strong>default choice for most RAG systems</strong>. It works well out of the box for most document types. Start here, then try semantic if quality is insufficient.'},
+docaware:{label:'Document-Aware (Structure-Based)',color:'#38bdf8',
+def:'Uses the <strong>actual document structure</strong> — headings, sections, bullet lists, table rows — to determine chunk boundaries. Each heading becomes a chunk, or each bullet item becomes a chunk. Requires a parser that understands the document format (Markdown, HTML, DOCX with styles).',
+analogy:'Like a librarian who organizes by chapter and section, not by page count. Chapter 3 is one unit, Chapter 4 is another — regardless of how many pages each has. The structure itself tells you where to cut.',
+pros:['Most natural chunk boundaries — every chunk is a complete section or item','Metadata comes free — each chunk inherits its heading/title as context','Excellent for structured docs (policies, manuals, legal contracts) where headings carry meaning'],
+cons:['Requires a structure-aware parser — can\'t just split raw text','Unstructured documents (plain text, emails) have no structure to leverage','Sections can be very uneven in size — a 2-line heading section vs a 3-page section'],
+use:'Use when: Your documents have clear structure (Markdown, HTML, DOCX with heading styles). Especially powerful for policies, manuals, and contracts where section titles add valuable context.'}
+};
+
+function showChunk(type,btn){
+document.querySelectorAll('#chunking .tbtn').forEach(b=>b.classList.remove('act'));
+btn.classList.add('act');
+const d=cData[type],el=document.getElementById('chunkDisp');
+const chunks={
+fixed:['## Employee Benefits Overview\n\nAll full-time employees are entitled to 20 days of paid annual leave per calendar year. Leave requests must be submitted through the HR portal at least two weeks in advance. Unused leave may carry over up to 5 days into the next year.\n\n### Health Insurance\n\nThe company provides comprehensive health insurance',' coverage through BlueCross BlueShield. This includes medical, dental, and vision plans. Employees are responsible for 20% of premium costs; the company covers the remaining 80%.\n\n### Remote Work\n\nRemote work is permitted up to three days per week under a hybrid arrangement. Employees must have a signed remote work',' agreement on file and coordinate schedules with their direct manager. Home office stipend of $500 is provided annually.'],
+semantic:['## Employee Benefits Overview\n\nAll full-time employees are entitled to 20 days of paid annual leave per calendar year. Leave requests must be submitted through the HR portal at least two weeks in advance. Unused leave may carry over up to 5 days into the next year.','### Health Insurance\n\nThe company provides comprehensive health insurance coverage through BlueCross BlueShield. This includes medical, dental, and vision plans. Employees are responsible for 20% of premium costs; the company covers the remaining 80%.','### Remote Work\n\nRemote work is permitted up to three days per week under a hybrid arrangement. Employees must have a signed remote work agreement on file and coordinate schedules with their direct manager.'],
+recursive:['## Employee Benefits Overview\n\nAll full-time employees are entitled to 20 days of paid annual leave per calendar year. Leave requests must be submitted through the HR portal at least two weeks in advance. Unused leave may carry over up to 5 days into the next year.\n\n### Health Insurance\n\nThe company provides comprehensive health insurance coverage through BlueCross BlueShield. This includes medical, dental, and vision plans. Employees are responsible for 20% of premium costs; the company covers the remaining 80%.',' the remaining 80%.\n\n### Remote Work\n\nRemote work is permitted up to three days per week under a hybrid arrangement. Employees must have a signed remote work agreement on file and coordinate schedules with their direct manager.'],
+docaware:[{t:'## Employee Benefits Overview — Leave Policy',x:'All full-time employees are entitled to 20 days of paid annual leave per calendar year. Leave requests must be submitted through the HR portal at least two weeks in advance. Unused leave may carry over up to 5 days into the next year.'},{t:'### Health Insurance',x:'The company provides comprehensive health insurance coverage through BlueCross BlueShield. This includes medical, dental, and vision plans. Employees are responsible for 20% of premium costs; the company covers the remaining 80%.'},{t:'### Remote Work',x:'Remote work is permitted up to three days per week under a hybrid arrangement. Employees must have a signed remote work agreement on file and coordinate schedules with their direct manager.'}]
+};
+let h=`<div style="font-size:12px;color:${d.color};font-weight:600;margin-bottom:10px">${d.label}</div>`;
+h+=`<div class="db" style="margin-bottom:10px"><div class="dl">Definition</div><div class="dt">${d.def}</div></div>`;
+h+=`<div class="ab"><i class="fas fa-lightbulb"></i>${d.analogy}</div>`;
+h+=`<div class="pc2" style="margin-top:10px"><div>`;
+d.pros.forEach(p=>{h+=`<div class="pi"><i class="fas fa-check" style="color:var(--teal)"></i><span>${p}</span></div>`});
+h+=`</div><div>`;
+d.cons.forEach(c=>{h+=`<div class="pi"><i class="fas fa-xmark" style="color:var(--cherry)"></i><span>${c}</span></div>`});
+h+=`</div></div>`;
+h+=`<div class="wb" style="background:${d.color}12;color:${d.color}"><i class="fas fa-bullseye"></i>${d.use}</div>`;
+h+=`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Result on sample text:</div>`;
+chunks[type].forEach((c,i)=>{
+const txt=typeof c==='string'?c:`<div style="font-weight:600;color:var(--text);margin-bottom:3px;font-size:11.5px">${c.t}</div>${c.x}`;
+h+=`<div class="chk" style="border-color:${d.color}"><span style="color:${d.color};font-size:9.5px;font-weight:600">CHUNK ${i}</span><br>${txt}</div>`});
+h+=`</div>`;
+el.innerHTML=h;
+}
+showChunk('fixed',document.querySelector('#chunking .tbtn'));
+
+/* ========== PIPELINE ANIMATION ========== */
+const pDescs={'p1':'<strong>Ingest:</strong> Load raw documents from storage, parse PDF/DOCX to extract text and metadata (author, department, date).','p2':'<strong>Embed:</strong> Pass each chunk through embedding model to produce a 1536-dimensional vector representation of its meaning.','p3':'<strong>Index:</strong> Store vectors + metadata in vector DB. Build HNSW proximity graph for fast search. Assign to namespace.','p4':'<strong>Retrieve:</strong> Embed user query, search vector DB for nearest chunks, apply metadata filters, re-rank with cross-encoder.','p5':'<strong>Generate:</strong> Inject top-ranked chunks as context into the LLM prompt. LLM generates a grounded answer with citations.'};
+let pRun=false;
+function playPipe(){if(pRun)return;pRun=true;const btn=document.getElementById('ppBtn');btn.style.opacity='.5';const ns=['p1','p2','p3','p4','p5'],cs=['c1','c2','c3','c4'],desc=document.getElementById('pDesc');ns.forEach(n=>{document.getElementById(n).className='pn'});cs.forEach(c=>{document.getElementById(c).className='pc'});desc.style.opacity='0';let i=0;function step(){if(i>0){document.getElementById(ns[i-1]).className='pn dn';if(i-1<cs.length)document.getElementById(cs[i-1]).className='pc act'}if(i<ns.length){document.getElementById(ns[i]).className='pn act';desc.style.opacity='1';desc.innerHTML=pDescs[ns[i]];i++;setTimeout(step,1100)}else{document.getElementById(ns[ns.length-1]).className='pn dn';pRun=false;btn.style.opacity='1'}}step()}
+
+/* ========== DEMO: DOC CHIPS ========== */
+function initChips(){const c=document.getElementById('dChips');docs.forEach(d=>{const ch=document.createElement('div');ch.className='doc-chip';ch.innerHTML=`<span class="dot" style="background:${d.color}"></span><i class="fas fa-${d.type==='pdf'?'file-pdf':'file-word'}" style="font-size:10px"></i><span>${d.name}</span>`;ch.onclick=()=>togDoc(d.id,ch);c.appendChild(ch)})}
+function togDoc(id,ch){if(selDocs.has(id)){selDocs.delete(id);ch.classList.remove('sel')}else{selDocs.add(id);ch.classList.add('sel')}document.getElementById('dCnt').textContent=`${selDocs.size} selected`;const b=document.getElementById('iBtn');b.disabled=selDocs.size===0;b.style.opacity=selDocs.size===0?'.4':'1'}
+
+/* ========== DEMO: INGEST ========== */
+function doIngest(){if(!selDocs.size||isIdx)return;const b=document.getElementById('iBtn');b.disabled=true;b.style.opacity='.4';b.innerHTML='<i class="fas fa-spinner fa-spin" style="margin-right:5px"></i>Ingesting...';const pr=document.getElementById('iProg');pr.style.display='block';let tc=0;const ds=docs.filter(d=>selDocs.has(d.id));ds.forEach(d=>tc+=d.chunks.length);let h='<div style="display:flex;flex-direction:column;gap:6px">',st=0,tot=ds.length*3+1;
+function nx(lab,det,col){st++;const pct=Math.round(st/tot*100);h+=`<div style="display:flex;align-items:center;gap:9px;font-size:11.5px"><i class="fas fa-check-circle" style="color:${col};font-size:10px"></i><span style="color:var(--text)">${lab}</span><span style="color:var(--muted);margin-left:auto">${det}</span></div>`;pr.innerHTML=h+`<div style="margin-top:10px"><div style="height:4px;background:#222;border-radius:2px;overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--accent);border-radius:2px;transition:width .3s"></div></div><div style="font-size:10.5px;color:var(--muted);margin-top:3px">${pct}%</div></div></div>`;
+if(st<tot){const nd=ds[Math.floor(st/3)%ds.length],ph=st%3;const lb=[`Parsing ${nd.name}`,'extracting text...',nd.color,`Chunking ${nd.name}`,`${nd.chunks.length} chunks`,nd.color,`Embedding ${nd.chunks.length} chunks`,'1536-dim vectors',nd.color][ph*3];setTimeout(()=>nx(lb[0],lb[1],lb[2]),350)}else{h+=`<div style="display:flex;align-items:center;gap:9px;font-size:11.5px"><i class="fas fa-check-circle" style="color:var(--teal);font-size:10px"></i><span style="color:var(--teal);font-weight:600">Indexing complete — ${tc} chunks stored</span></div>`;pr.innerHTML=h;setTimeout(finIngest,400)}}
+const fd=ds[0];setTimeout(()=>nx(`Parsing ${fd.name}`,'extracting text...',fd.color),250)}
+
+function finIngest(){isIdx=true;const b=document.getElementById('iBtn');b.innerHTML='<i class="fas fa-check" style="margin-right:5px"></i>Ingested';b.style.background='var(--teal)';document.getElementById('dQuery').style.display='block';document.getElementById('dQuery').scrollIntoView({behavior:'smooth',block:'center'});initVC();
+const sq=document.getElementById('sQ');qData.forEach(q=>{const btn=document.createElement('button');btn.style.cssText='padding:5px 11px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid var(--border);color:var(--text2);font-size:11.5px;cursor:pointer;font-family:DM Sans;transition:all .2s';btn.textContent=q.text;btn.onmouseenter=()=>{btn.style.borderColor='var(--accent)';btn.style.color='var(--accent)'};btn.onmouseleave=()=>{btn.style.borderColor='var(--border)';btn.style.color='var(--text2)'};btn.onclick=()=>{document.getElementById('qIn').value=q.text;doQuery()};sq.appendChild(btn)});
+document.getElementById('qIn').addEventListener('keydown',e=>{if(e.key==='Enter')doQuery()})}
+
+/* ========== VECTOR CANVAS ========== */
+function initVC(){const c=document.getElementById('vC'),x=c.getContext('2d'),dp=devicePixelRatio||1;
+function rz(){const r=c.getBoundingClientRect();c.width=r.width*dp;c.height=r.height*dp;x.setTransform(dp,0,0,dp,0,0)}rz();addEventListener('resize',()=>{rz();drVS()});
+c.addEventListener('mousemove',e=>{const r=c.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;hovC=null;for(const p of cps){const dx=p.x*(r.width/800)-mx,dy=p.y*(r.height/320)-my;if(Math.sqrt(dx*dx+dy*dy)<12){hovC=p;break}}c.style.cursor=hovC?'pointer':'default'});
+function drVS(){const w=c.getBoundingClientRect().width,h=c.getBoundingClientRect().height,sx=w/800,sy=h/320;x.clearRect(0,0,w,h);
+x.strokeStyle='rgba(255,255,255,.025)';x.lineWidth=1;for(let i=0;i<w;i+=38){x.beginPath();x.moveTo(i,0);x.lineTo(i,h);x.stroke()}for(let i=0;i<h;i+=38){x.beginPath();x.moveTo(0,i);x.lineTo(w,i);x.stroke()}
+docs.forEach(d=>{if(!selDocs.has(d.id))return;x.font='10px DM Sans';x.fillStyle=d.color+'55';x.textAlign='center';x.fillText(d.dept,d.cx*sx,(d.cy-50)*sy)});
+const t=Date.now()*.001;
+cps.forEach(p=>{if(!selDocs.has(p.did))return;const px=p.x*sx,py=p.y*sy+Math.sin(t+p.x*.1)*2;
+const g=x.createRadialGradient(px,py,0,px,py,14);g.addColorStop(0,p.color+'1a');g.addColorStop(1,p.color+'00');x.fillStyle=g;x.beginPath();x.arc(px,py,14,0,Math.PI*2);x.fill();
+const isH=hovC&&hovC.did===p.did&&hovC.ci===p.ci,isR=curQ&&curQ.results.some(r=>docs.find(d=>d.id===r.d).id===p.did&&r.ci===p.ci);
+x.beginPath();x.arc(px,py,isH?7:isR?6:3.5,0,Math.PI*2);x.fillStyle=isR?'#ffffff':p.color;x.fill();if(isH||isR){x.strokeStyle=p.color;x.lineWidth=2;x.stroke()}});
+if(curQ){const qx=curQ.qp.x*sx,qy=curQ.qp.y*sy;
+curQ.results.forEach((r,i)=>{const doc=docs.find(d=>d.id===r.d),cp=cps.find(c=>c.did===r.d&&c.ci===r.ci);if(!cp)return;const cx=cp.x*sx,cy=cp.y*sy+Math.sin(t+cp.x*.1)*2;x.beginPath();x.moveTo(qx,qy);x.lineTo(cx,cy);x.strokeStyle=`rgba(245,158,11,${.45-i*.12})`;x.lineWidth=1.5;x.setLineDash([4,4]);x.stroke();x.setLineDash([]);x.font='bold 9px DM Sans';x.fillStyle='#f59e0b';x.textAlign='center';x.fillText(r.rr.toFixed(2),(qx+cx)/2,(qy+cy)/2-5)});
+const pu=(Math.sin(t*3)+1)*.5;x.beginPath();x.arc(qx,qy,11+pu*5,0,Math.PI*2);x.fillStyle=`rgba(245,158,11,${.08+pu*.04})`;x.fill();x.beginPath();x.arc(qx,qy,5.5,0,Math.PI*2);x.fillStyle='#f59e0b';x.fill();x.strokeStyle='#fff';x.lineWidth=2;x.stroke();x.font='bold 9px DM Sans';x.fillStyle='#f59e0b';x.textAlign='center';x.fillText('QUERY',qx,qy-13)}
+if(hovC){const doc=docs.find(d=>d.id===hovC.did),txt=doc.chunks[hovC.ci].substring(0,75)+'...',tx=hovC.x*sx,ty=hovC.y*sy-18;x.font='11px DM Sans';const tw=x.measureText(txt).width;x.fillStyle='rgba(10,10,10,.9)';x.strokeStyle=doc.color+'33';x.lineWidth=1;const bx=Math.min(Math.max(tx-tw/2-7,3),w-tw-18);x.beginPath();x.roundRect(bx,ty-18,tw+14,26,6);x.fill();x.stroke();x.fillStyle='#e5e5e5';x.textAlign='left';x.fillText(txt,bx+7,ty-1)}
+af=requestAnimationFrame(drVS)}drVS()}
+
+/* ========== DEMO: QUERY ========== */
+function doQuery(){const inp=document.getElementById('qIn'),q=inp.value.trim();if(!q)return;const qd=qData.find(x=>x.text.toLowerCase()===q.toLowerCase());curQ=qd||qData[0];const qb=document.getElementById('qBtn');qb.disabled=true;qb.innerHTML='<i class="fas fa-spinner fa-spin" style="margin-right:5px"></i>Processing...';inp.disabled=true;
+document.getElementById('dPipe').style.display='none';document.getElementById('dRet').style.display='none';document.getElementById('dAns').style.display='none';
+const pe=document.getElementById('dPipe'),se=document.getElementById('pSteps');pe.style.display='block';se.innerHTML='';
+let si=0;const ico=['fa-cube','fa-magnifying-glass','fa-filter','fa-arrow-up-wide-short','fa-layer-group'],col=['var(--accent)','var(--teal)','var(--sky)','var(--violet)','var(--accent)'];
+function showS(){if(si>=curQ.steps.length){setTimeout(()=>{showRet();setTimeout(showAns,500);qb.disabled=false;qb.innerHTML='<i class="fas fa-paper-plane" style="margin-right:5px"></i>Query';inp.disabled=false},350);return}
+const s=curQ.steps[si],div=document.createElement('div');div.style.cssText='display:flex;align-items:flex-start;gap:9px;padding:9px 13px;border-radius:8px;background:rgba(255,255,255,.02);border:1px solid var(--border);opacity:0;transform:translateX(-8px);transition:all .3s';
+div.innerHTML=`<div style="width:26px;height:26px;border-radius:6px;background:${col[si]}12;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas ${ico[si]}" style="font-size:10px;color:${col[si]}"></i></div><div><div style="font-size:10.5px;color:var(--muted);margin-bottom:1px">Step ${si+1}</div><div style="font-size:12px;color:var(--text2)">${s}</div></div>`;
+se.appendChild(div);requestAnimationFrame(()=>{div.style.opacity='1';div.style.transform='translateX(0)'});
+if(si>0){const pv=se.children[si-1];pv.style.borderColor='rgba(20,184,166,.2)';pv.querySelector('div>div>i').style.color='var(--teal)'}
+si++;setTimeout(showS,600)}
+pe.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(showS,250)}
+
+function showRet(){const el=document.getElementById('dRet'),ct=document.getElementById('rChunks');el.style.display='block';ct.innerHTML='';
+curQ.results.forEach((r,i)=>{const doc=docs.find(d=>d.id===r.d),txt=doc.chunks[r.ci],div=document.createElement('div');div.className='rc';div.style.cssText=`opacity:0;transform:translateY(6px);transition:all .35s ${i*.1}s`;
+div.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px"><div style="display:flex;align-items:center;gap:7px"><span style="width:7px;height:7px;border-radius:50%;background:${doc.color};display:inline-block"></span><span style="font-size:11.5px;color:var(--text);font-weight:500">${doc.name} — Chunk ${r.ci}</span><span class="tag" style="background:${doc.color}12;color:${doc.color}">${doc.dept}</span></div><div style="display:flex;align-items:center;gap:10px;font-size:10.5px"><span style="color:var(--muted)">Bi-enc: ${r.s.toFixed(2)}</span><span style="color:var(--accent)">Re-rank: <strong>${r.rr.toFixed(2)}</strong></span></div></div><p style="font-size:11.5px;color:var(--text2);line-height:1.6">${txt}</p><div class="sb" style="margin-top:7px"><div class="sbf" style="width:${r.rr*100}%;background:${doc.color}"></div></div>`;
+ct.appendChild(div);requestAnimationFrame(()=>{div.style.opacity='1';div.style.transform='translateY(0)'})});
+el.scrollIntoView({behavior:'smooth',block:'center'})}
+
+function showAns(){const el=document.getElementById('dAns'),ct=document.getElementById('gAns');el.style.display='block';ct.innerHTML='<span class="tc"></span>';const ans=curQ.answer;let ci=0;
+function tp(){if(ci<ans.length){ct.innerHTML=ans.substring(0,ci+1)+'<span class="tc"></span>';ci++;setTimeout(tp,10+Math.random()*16)}else{ct.innerHTML=ans}}
+el.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(tp,250)}
+
+/* ========== INIT ========== */
+initChips();
+docs.forEach(d=>{selDocs.add(d.id);document.querySelectorAll('.doc-chip').forEach(c=>{if(c.textContent.includes(d.name))c.classList.add('sel')})});
+document.getElementById('dCnt').textContent=`${docs.length} selected`;document.getElementById('iBtn').disabled=false;document.getElementById('iBtn').style.opacity='1';
+</script>
+</body>
+</html>
