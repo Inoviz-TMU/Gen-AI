@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Session 04 — RAG Evaluation & Semantic Caching</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A1120;
+    --panel:#101B30;
+    --panel-alt:#0C1526;
+    --line:#22314C;
+    --text:#E8EEF7;
+    --text-dim:#8FA0BD;
+    --teal:#5EEAD4;
+    --teal-dim:#1F4A45;
+    --rose:#FB7185;
+    --rose-dim:#4A2530;
+    --amber:#FBBF24;
+    --amber-dim:#4A3B18;
+    --radius:14px;
+    --disp:'Space Grotesk', sans-serif;
+    --body:'Inter', sans-serif;
+    --mono:'JetBrains Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 15% 0%, #142141 0%, transparent 45%),
+      radial-gradient(circle at 85% 10%, #0F2A2A 0%, transparent 40%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--body);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .bg-grid{
+    position:fixed; inset:0; z-index:-1;
+    background-image:
+      linear-gradient(to right, rgba(94,234,212,0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(94,234,212,0.04) 1px, transparent 1px);
+    background-size:42px 42px;
+    mask-image:radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 90%);
+  }
+  a{color:inherit;}
+  .wrap{max-width:980px; margin:0 auto; padding:0 24px;}
+
+  /* ---------- HERO ---------- */
+  header.hero{padding:72px 24px 40px; text-align:center;}
+  .eyebrow{
+    font-family:var(--mono); font-size:12.5px; letter-spacing:0.18em;
+    color:var(--teal); text-transform:uppercase; margin-bottom:18px;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .eyebrow::before, .eyebrow::after{content:""; width:26px; height:1px; background:var(--line);}
+  h1{
+    font-family:var(--disp); font-weight:700; font-size:clamp(32px,5vw,52px);
+    margin:0 0 18px; letter-spacing:-0.01em;
+  }
+  h1 span{color:var(--teal);}
+  .sub{
+    max-width:600px; margin:0 auto 36px; color:var(--text-dim); font-size:17px;
+  }
+  nav.toc{
+    display:flex; flex-wrap:wrap; justify-content:center; gap:8px; max-width:820px; margin:0 auto;
+  }
+  nav.toc a{
+    font-family:var(--mono); font-size:12.5px; text-decoration:none; color:var(--text-dim);
+    border:1px solid var(--line); padding:7px 12px; border-radius:999px;
+    transition:all .18s ease; white-space:nowrap;
+  }
+  nav.toc a:hover{border-color:var(--teal); color:var(--teal);}
+  nav.toc a b{color:var(--teal); font-weight:600; margin-right:4px;}
+  nav.toc a:hover b{color:var(--teal);}
+
+  /* ---------- SECTIONS ---------- */
+  main{max-width:980px; margin:0 auto; padding:0 24px 60px;}
+  section.panel{
+    background:linear-gradient(180deg, var(--panel), var(--panel-alt));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:38px clamp(20px,4vw,44px);
+    margin-bottom:26px;
+    scroll-margin-top:20px;
+    position:relative;
+    overflow:hidden;
+  }
+  section.panel::before{
+    content:attr(data-num);
+    position:absolute; top:-18px; right:8px;
+    font-family:var(--disp); font-weight:700; font-size:120px;
+    color:rgba(255,255,255,0.025); line-height:1; pointer-events:none;
+  }
+  .tag{
+    font-family:var(--mono); font-size:12px; letter-spacing:.14em; color:var(--teal);
+    text-transform:uppercase; margin-bottom:10px; display:block;
+  }
+  h2{
+    font-family:var(--disp); font-size:clamp(22px,3vw,28px); margin:0 0 14px; font-weight:600;
+  }
+  h3{
+    font-family:var(--disp); font-size:17px; margin:0 0 8px; font-weight:600; color:var(--text);
+  }
+  p{color:var(--text-dim); margin:0 0 14px; font-size:15.5px;}
+  p.lead{color:var(--text); font-size:16.5px;}
+  strong{color:var(--text); font-weight:600;}
+  .callout{
+    border-left:3px solid var(--teal); background:rgba(94,234,212,0.06);
+    padding:12px 16px; border-radius:0 8px 8px 0; font-size:14.5px; color:var(--text);
+    margin:16px 0;
+  }
+  .callout b{color:var(--teal);}
+
+  /* ---------- GRIDS / CARDS ---------- */
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin:22px 0 6px;}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:22px 0 6px;}
+  @media(max-width:760px){.grid-3, .grid-2{grid-template-columns:1fr;}}
+
+  .card{
+    background:var(--panel-alt); border:1px solid var(--line); border-radius:10px;
+    padding:18px 18px 20px;
+  }
+  .card.rose{border-color:rgba(251,113,133,0.35);}
+  .card.amber{border-color:rgba(251,191,36,0.35);}
+  .card.teal{border-color:rgba(94,234,212,0.35);}
+  .card .icon{
+    width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    margin-bottom:12px; font-family:var(--mono); font-size:14px; font-weight:600;
+  }
+  .card.rose .icon{background:var(--rose-dim); color:var(--rose);}
+  .card.amber .icon{background:var(--amber-dim); color:var(--amber);}
+  .card.teal .icon{background:var(--teal-dim); color:var(--teal);}
+  .card p{font-size:14px; margin-bottom:10px;}
+  .trace{
+    font-family:var(--mono); font-size:12.3px; background:var(--bg); border:1px solid var(--line);
+    border-radius:6px; padding:10px 12px; color:var(--text-dim); line-height:1.7;
+  }
+  .trace .k{color:var(--text-dim);}
+  .trace .bad{color:var(--rose);}
+  .trace .ok{color:var(--teal);}
+
+  /* ---------- CODE ---------- */
+  pre.code{
+    background:#08101F; border:1px solid var(--line); border-radius:10px;
+    padding:18px 20px; overflow-x:auto; font-family:var(--mono); font-size:13px;
+    color:#C9D6EA; margin:16px 0; line-height:1.65;
+  }
+  pre.code .c{color:#5A6C8C;}
+  pre.code .s{color:var(--teal);}
+  pre.code .fn{color:var(--amber);}
+  .code-label{
+    font-family:var(--mono); font-size:11px; color:var(--text-dim); letter-spacing:.1em;
+    text-transform:uppercase; margin:18px 0 -6px;
+  }
+
+  /* ---------- FORMULA ---------- */
+  .eq{
+    font-family:var(--mono); font-size:13.5px; background:var(--bg); border:1px dashed var(--line);
+    border-radius:8px; padding:14px 16px; color:var(--teal); margin:12px 0 16px;
+  }
+  .eq .frac{color:var(--text-dim);}
+
+  /* ---------- GAUGES ---------- */
+  .gauge-row{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin:24px 0 4px;}
+  @media(max-width:760px){.gauge-row{grid-template-columns:1fr;}}
+  .gauge-card{
+    background:var(--panel-alt); border:1px solid var(--line); border-radius:10px;
+    padding:18px; text-align:center;
+  }
+  .gauge-card svg{width:100%; max-width:180px;}
+  .gauge-val{font-family:var(--disp); font-size:26px; font-weight:700; margin-top:-58px; position:relative;}
+  .gauge-label{font-family:var(--mono); font-size:11.5px; color:var(--text-dim); letter-spacing:.08em; text-transform:uppercase; margin-top:6px;}
+  .gauge-note{font-size:12.5px; color:var(--text-dim); margin-top:8px;}
+
+  /* ---------- FLOW DIAGRAM ---------- */
+  .flow{
+    display:flex; align-items:stretch; gap:0; overflow-x:auto; padding:20px 4px; margin:10px 0;
+  }
+  .flow-step{
+    min-width:150px; background:var(--panel-alt); border:1px solid var(--line); border-radius:10px;
+    padding:14px; font-size:12.8px; text-align:center; display:flex; flex-direction:column; justify-content:center;
+    position:relative; flex-shrink:0;
+  }
+  .flow-step b{display:block; font-family:var(--disp); font-size:13.5px; margin-bottom:4px; color:var(--text);}
+  .flow-arrow{
+    display:flex; align-items:center; justify-content:center; min-width:34px; color:var(--text-dim); font-size:18px; flex-shrink:0;
+  }
+  .flow-branch{display:flex; flex-direction:column; gap:8px; min-width:170px; flex-shrink:0;}
+  .flow-step.hit{border-color:var(--teal); background:var(--teal-dim);}
+  .flow-step.miss{border-color:var(--amber); background:var(--amber-dim);}
+
+  /* ---------- CACHE DEMO ---------- */
+  .demo{margin-top:20px;}
+  .demo-tabs{display:flex; gap:8px; margin-bottom:16px;}
+  .demo-tab{
+    font-family:var(--mono); font-size:12.5px; padding:8px 16px; border-radius:8px;
+    border:1px solid var(--line); background:transparent; color:var(--text-dim); cursor:pointer;
+    transition:all .18s ease;
+  }
+  .demo-tab.active{border-color:var(--teal); color:var(--teal); background:var(--teal-dim);}
+  table.demo-table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  table.demo-table th{
+    font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--text-dim); text-align:left; padding:8px 10px; border-bottom:1px solid var(--line);
+  }
+  table.demo-table td{padding:10px; border-bottom:1px solid var(--line); color:var(--text);}
+  .pill{
+    font-family:var(--mono); font-size:11.5px; padding:3px 10px; border-radius:999px; font-weight:600;
+  }
+  .pill.hit{background:var(--teal-dim); color:var(--teal);}
+  .pill.miss{background:var(--rose-dim); color:var(--rose);}
+  .demo-hide{display:none;}
+
+  /* ---------- GENERIC TABLE ---------- */
+  table.data{width:100%; border-collapse:collapse; margin:16px 0; font-size:14px;}
+  table.data th{
+    text-align:left; font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--text-dim); padding:9px 12px; border-bottom:1px solid var(--line);
+  }
+  table.data td{padding:11px 12px; border-bottom:1px solid var(--line); color:var(--text-dim);}
+  table.data td.metric{color:var(--text); font-family:var(--mono); font-weight:600;}
+  table.data td.score{font-family:var(--mono); color:var(--teal);}
+
+  /* ---------- STEPS ---------- */
+  .steps{counter-reset:step; margin:20px 0 4px;}
+  .step{
+    display:grid; grid-template-columns:44px 1fr; gap:16px; padding:16px 0; border-top:1px solid var(--line);
+  }
+  .step:first-child{border-top:none;}
+  .step-num{
+    counter-increment:step; font-family:var(--disp); font-weight:700; font-size:15px; color:var(--teal);
+    width:34px; height:34px; border:1px solid var(--line); border-radius:8px; display:flex; align-items:center; justify-content:center;
+  }
+  .step-num::before{content:counter(step, decimal-leading-zero);}
+
+  /* ---------- FOOTER RECAP ---------- */
+  footer.recap{
+    max-width:980px; margin:0 auto; padding:20px 24px 80px;
+  }
+  .recap h2{text-align:center; margin-bottom:24px;}
+  .recap-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:12px;}
+  @media(max-width:760px){.recap-grid{grid-template-columns:repeat(2,1fr);}}
+  .recap-card{
+    background:var(--panel-alt); border:1px solid var(--line); border-radius:10px; padding:16px;
+    font-size:12.8px;
+  }
+  .recap-card b{display:block; font-family:var(--disp); font-size:14px; color:var(--teal); margin-bottom:6px;}
+
+  ::selection{background:var(--teal-dim); color:var(--teal);}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important; scroll-behavior:auto !important;} }
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+
+<header class="hero">
+  <div class="eyebrow">Session 04 · RAG Systems</div>
+  <h1>RAG Evaluation &amp; <span>Semantic Caching</span></h1>
+  <p class="sub">You already know how to build a RAG pipeline. This session is about proving it works, finding out exactly where it breaks, and making it fast and cheap enough to run in production.</p>
+  <nav class="toc">
+    <a href="#s1"><b>01</b>Measuring quality</a>
+    <a href="#s2"><b>02</b>Failure modes</a>
+    <a href="#s3"><b>03</b>RAGAS</a>
+    <a href="#s4"><b>04</b>Semantic caching</a>
+    <a href="#s5"><b>05</b>Exact vs. semantic</a>
+    <a href="#s6"><b>06</b>Invalidation</a>
+    <a href="#s7"><b>07</b>Benchmark</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- 01 -->
+  <section class="panel" id="s1" data-num="01">
+    <span class="tag">01 · Foundations</span>
+    <h2>Measuring and optimising retrieval quality</h2>
+    <p class="lead">A RAG system has two jobs: <strong>find the right information</strong>, then <strong>use it correctly</strong>. If either step fails, the final answer is wrong — even if the other step was perfect.</p>
+    <p>Most beginners only look at the final answer and ask "does this look right?" That's not enough, because a good-looking answer can hide a broken retriever, and a bad-looking answer can hide a retriever that actually did its job. To fix a RAG system, you need to measure <strong>each stage separately</strong>:</p>
+    <div class="grid-2">
+      <div class="card teal">
+        <div class="icon">R</div>
+        <h3>Retrieval quality</h3>
+        <p>Did we pull the chunks that actually contain the answer? Measured independently of what the LLM later does with them.</p>
+      </div>
+      <div class="card teal">
+        <div class="icon">G</div>
+        <h3>Generation quality</h3>
+        <p>Given the chunks we retrieved, did the LLM produce an answer that is faithful to them and actually useful to the user?</p>
+      </div>
+    </div>
+    <div class="callout"><b>Why this matters:</b> "optimising retrieval" almost always means changing chunk size, embedding model, top-k, or adding reranking — and you can only tell if a change helped if you have a number to compare before and after.</div>
+  </section>
+
+  <!-- 02 -->
+  <section class="panel" id="s2" data-num="02">
+    <span class="tag">02 · Diagnosis</span>
+    <h2>RAG failure modes</h2>
+    <p class="lead">When a RAG answer is wrong, the bug is almost always in one of three places. Learning to tell them apart is the single most useful debugging skill in this session.</p>
+    <div class="grid-3">
+      <div class="card rose">
+        <div class="icon">✕</div>
+        <h3>Retrieval failure</h3>
+        <p>The right information exists in the knowledge base, but the retriever never fetched it. The LLM never had a chance.</p>
+        <div class="trace">
+          <span class="k">query:</span> "refund window for electronics?"<br>
+          <span class="k">retrieved:</span> <span class="bad">[shipping policy, returns FAQ]</span><br>
+          <span class="k">verdict:</span> <span class="bad">MISSING — electronics clause never retrieved</span>
+        </div>
+      </div>
+      <div class="card rose">
+        <div class="icon">!</div>
+        <h3>Faithfulness failure</h3>
+        <p>Retrieval worked — the right chunk was in context — but the LLM ignored it, mixed it up, or added facts that aren't there. This is <strong>hallucination despite good context</strong>.</p>
+        <div class="trace">
+          <span class="k">context:</span> "electronics: 15-day return"<br>
+          <span class="k">answer:</span> <span class="bad">"You have 30 days to return electronics"</span><br>
+          <span class="k">verdict:</span> <span class="bad">CONTRADICTS the retrieved context</span>
+        </div>
+      </div>
+      <div class="card rose">
+        <div class="icon">?</div>
+        <h3>Answer failure</h3>
+        <p>Retrieval and faithfulness were both fine, but the answer still doesn't help the user — incomplete, badly scoped, or answering a different question than what was asked.</p>
+        <div class="trace">
+          <span class="k">question:</span> "how do I start a return?"<br>
+          <span class="k">answer:</span> <span class="bad">"Electronics have a 15-day window."</span><br>
+          <span class="k">verdict:</span> <span class="bad">true, but doesn't answer "how"</span>
+        </div>
+      </div>
+    </div>
+    <div class="callout"><b>Debugging tip:</b> always check the <em>retrieved chunks</em> first, before you judge the answer. If the right chunk isn't there, don't waste time tuning your prompt — go fix retrieval instead.</div>
+  </section>
+
+  <!-- 03 -->
+  <section class="panel" id="s3" data-num="03">
+    <span class="tag">03 · Automated Evaluation</span>
+    <h2>The RAGAS evaluation framework</h2>
+    <p class="lead">RAGAS is an open-source library that scores your RAG pipeline automatically, using another LLM as a judge — so you don't have to hand-label every question yourself. It turns the three failure modes above into three numbers you can track over time.</p>
+
+    <div class="gauge-row">
+      <div class="gauge-card">
+        <svg id="gauge1" class="gauge" data-value="0.93" viewBox="0 0 200 120"></svg>
+        <div class="gauge-label">Faithfulness</div>
+        <div class="gauge-note">answer claims backed by context</div>
+      </div>
+      <div class="gauge-card">
+        <svg id="gauge2" class="gauge" data-value="0.88" viewBox="0 0 200 120"></svg>
+        <div class="gauge-label">Answer relevancy</div>
+        <div class="gauge-note">answer actually addresses the question</div>
+      </div>
+      <div class="gauge-card">
+        <svg id="gauge3" class="gauge" data-value="0.71" viewBox="0 0 200 120"></svg>
+        <div class="gauge-label">Context recall</div>
+        <div class="gauge-note">needed info was actually retrieved</div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:28px;">Faithfulness</h3>
+    <p>Catches <strong>faithfulness failures</strong>. RAGAS breaks the answer into individual claims, then checks each one against the retrieved context.</p>
+    <div class="eq">faithfulness = <span class="frac">(claims supported by context)</span> / <span class="frac">(total claims in the answer)</span></div>
+
+    <h3>Answer relevancy</h3>
+    <p>Catches <strong>answer failures</strong>. RAGAS asks an LLM to reverse-engineer several questions that the given answer would be a good response to, embeds them, and compares them against the embedding of the original question. Off-topic or incomplete answers score low.</p>
+    <div class="eq">answer relevancy = average similarity( original question, questions reconstructed from the answer )</div>
+
+    <h3>Context recall</h3>
+    <p>Catches <strong>retrieval failures</strong>. Using a reference ("ground truth") answer, RAGAS checks whether everything needed to produce that answer was actually present somewhere in the retrieved chunks.</p>
+    <div class="eq">context recall = <span class="frac">(ground-truth statements attributable to retrieved context)</span> / <span class="frac">(total ground-truth statements)</span></div>
+
+    <div class="code-label">Python — running all three metrics</div>
+    <pre class="code"><span class="c"># you already have: questions, generated_answers, retrieved_contexts, reference_answers</span>
+<span class="fn">from</span> ragas <span class="fn">import</span> evaluate
+<span class="fn">from</span> ragas.metrics <span class="fn">import</span> faithfulness, answer_relevancy, context_recall
+<span class="fn">from</span> datasets <span class="fn">import</span> Dataset
+
+data = {
+    <span class="s">"question"</span>: questions,
+    <span class="s">"answer"</span>: generated_answers,
+    <span class="s">"contexts"</span>: retrieved_contexts,     <span class="c"># list[list[str]]</span>
+    <span class="s">"ground_truth"</span>: reference_answers,
+}
+
+result = evaluate(
+    Dataset.from_dict(data),
+    metrics=[faithfulness, answer_relevancy, context_recall],
+)
+print(result)  <span class="c"># {'faithfulness': 0.93, 'answer_relevancy': 0.88, 'context_recall': 0.71}</span></pre>
+    <div class="callout"><b>Reading the example above:</b> faithfulness and relevancy are strong — generation is trustworthy. Context recall at 0.71 is the weak link: the retriever is missing information the answer needed. That's a signal to revisit chunking or add reranking, <em>not</em> to touch the prompt.</div>
+  </section>
+
+  <!-- 04 -->
+  <section class="panel" id="s4" data-num="04">
+    <span class="tag">04 · Speed &amp; Cost</span>
+    <h2>Semantic caching with Redis / Momento</h2>
+    <p class="lead">Every RAG query normally costs one embedding call, one vector search, and one LLM generation call. If many users ask <em>the same thing in different words</em>, you're paying for the full pipeline every single time. Semantic caching skips it.</p>
+    <p>Instead of caching by the exact text of a query, you cache by <strong>meaning</strong>: store the embedding of every question you've answered, and before running the full pipeline, check whether a sufficiently similar question has already been answered.</p>
+
+    <div class="code-label">Architecture</div>
+    <div class="flow">
+      <div class="flow-step"><b>1 · User query</b>"How do I reset my password?"</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><b>2 · Embed query</b>turn text into a vector</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><b>3 · Vector lookup</b>search Redis / Momento cache for a similar past query</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-branch">
+        <div class="flow-step hit"><b>HIT (similar enough)</b>return cached answer — no LLM call</div>
+        <div class="flow-step miss"><b>MISS (nothing close)</b>run full retrieval + generation, then store the result</div>
+      </div>
+    </div>
+
+    <p>Redis (with the RediSearch / vector module) and Momento Vector Index both work the same way here: they store a vector alongside a payload (the cached answer) and let you run a nearest-neighbour search with a similarity threshold at read time.</p>
+
+    <h3 style="margin-top:22px;">TTL strategy</h3>
+    <p>TTL (time-to-live) controls how long a cached answer is trusted before it's treated as stale and evicted. Match it to how fast the underlying knowledge changes:</p>
+    <table class="data">
+      <tr><th>Content type</th><th>Suggested TTL</th><th>Why</th></tr>
+      <tr><td class="metric">Static docs (policies, product specs)</td><td class="score">Days – weeks</td><td>Rarely changes, safe to keep long</td></tr>
+      <tr><td class="metric">Semi-dynamic (FAQs, pricing tiers)</td><td class="score">Hours</td><td>Changes occasionally; balance freshness vs. hit rate</td></tr>
+      <tr><td class="metric">Volatile (stock, live status, news)</td><td class="score">Seconds – minutes</td><td>Stale answers here are actively misleading</td></tr>
+    </table>
+
+    <div class="code-label">Python — cache check &amp; store (Redis)</div>
+    <pre class="code"><span class="fn">import</span> redis, numpy <span class="fn">as</span> np
+r = redis.Redis(host=<span class="s">"localhost"</span>, port=6379)
+
+<span class="fn">def</span> check_cache(query_vec, threshold=0.92):
+    <span class="c"># KNN search against previously cached query embeddings</span>
+    hit = r.ft(<span class="s">"query_cache"</span>).search(
+        <span class="s">"*=>[KNN 1 @embedding $vec AS score]"</span>,
+        query_params={<span class="s">"vec"</span>: np.array(query_vec, dtype=np.float32).tobytes()},
+    )
+    <span class="fn">if</span> hit.docs <span class="fn">and</span> float(hit.docs[0].score) >= threshold:
+        <span class="fn">return</span> hit.docs[0].answer          <span class="c"># cache HIT</span>
+    <span class="fn">return</span> <span class="fn">None</span>                            <span class="c"># cache MISS</span>
+
+<span class="fn">def</span> store_cache(query_vec, answer, ttl_seconds=3600):
+    key = <span class="s">f"cache:{uuid4()}"</span>
+    r.hset(key, mapping={<span class="s">"embedding"</span>: np.array(query_vec, dtype=np.float32).tobytes(),
+                          <span class="s">"answer"</span>: answer})
+    r.expire(key, ttl_seconds)   <span class="c"># entry auto-evicts after TTL</span></pre>
+  </section>
+
+  <!-- 05 -->
+  <section class="panel" id="s5" data-num="05">
+    <span class="tag">05 · Trade-offs</span>
+    <h2>Exact-match vs. semantic similarity caching</h2>
+    <p class="lead">Both are valid — they just catch different kinds of repeated questions.</p>
+    <div class="grid-2">
+      <div class="card teal">
+        <div class="icon">=</div>
+        <h3>Exact-match caching</h3>
+        <p>Hash the literal query string and look it up. O(1), cheap, no embedding call needed.</p>
+        <p><strong>Only hits</strong> when the incoming text is character-for-character identical (or normalised — lowercased, whitespace-trimmed).</p>
+      </div>
+      <div class="card amber">
+        <div class="icon">≈</div>
+        <h3>Semantic caching</h3>
+        <p>Embed the query and search for a <em>meaning-similar</em> past query above a similarity threshold.</p>
+        <p><strong>Hits on paraphrases</strong>, but costs an embedding call + vector search, and a threshold set too loose can return a wrong-but-similar answer.</p>
+      </div>
+    </div>
+
+    <div class="demo">
+      <div class="demo-tabs">
+        <button class="demo-tab active" data-mode="exact">Exact-match cache</button>
+        <button class="demo-tab" data-mode="semantic">Semantic cache</button>
+      </div>
+      <p style="font-size:13px; margin-bottom:10px;">Cached question: <strong>"What is your return policy?"</strong> — see which incoming queries would hit the cache.</p>
+      <table class="demo-table">
+        <thead><tr><th>Incoming query</th><th>Similarity</th><th data-mode-col="exact">Exact-match result</th><th data-mode-col="semantic" class="demo-hide">Semantic result</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>"What is your return policy?"</td><td>1.00</td>
+            <td data-mode-col="exact"><span class="pill hit">HIT</span></td>
+            <td data-mode-col="semantic" class="demo-hide"><span class="pill hit">HIT</span></td>
+          </tr>
+          <tr>
+            <td>"what's your return policy?"</td><td>0.99</td>
+            <td data-mode-col="exact"><span class="pill miss">MISS</span> (punctuation differs)</td>
+            <td data-mode-col="semantic" class="demo-hide"><span class="pill hit">HIT</span></td>
+          </tr>
+          <tr>
+            <td>"How do I return an item?"</td><td>0.94</td>
+            <td data-mode-col="exact"><span class="pill miss">MISS</span></td>
+            <td data-mode-col="semantic" class="demo-hide"><span class="pill hit">HIT</span></td>
+          </tr>
+          <tr>
+            <td>"What is your refund policy?"</td><td>0.88</td>
+            <td data-mode-col="exact"><span class="pill miss">MISS</span></td>
+            <td data-mode-col="semantic" class="demo-hide"><span class="pill miss">MISS</span> (below 0.92 threshold — different concept)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout"><b>Rule of thumb:</b> use exact-match as a free first layer (it's nearly free), then fall back to semantic caching for the long tail of paraphrased questions. Most production systems run both.</div>
+  </section>
+
+  <!-- 06 -->
+  <section class="panel" id="s6" data-num="06">
+    <span class="tag">06 · Freshness</span>
+    <h2>Cache invalidation for dynamic knowledge bases</h2>
+    <p class="lead">A cached answer is only useful if it's still true. When your source documents change, stale cache entries need to be found and removed — this is what "invalidation" means.</p>
+    <div class="grid-3">
+      <div class="card">
+        <div class="icon">T</div>
+        <h3>TTL expiry</h3>
+        <p>Every entry auto-expires after a fixed time. Simple to implement, but coarse — you either evict too early (losing hit rate) or too late (serving stale answers).</p>
+      </div>
+      <div class="card">
+        <div class="icon">E</div>
+        <h3>Event-driven invalidation</h3>
+        <p>When a source document changes, publish an event that purges only the cache entries built from that document. Precise, but requires wiring your document pipeline to your cache.</p>
+      </div>
+      <div class="card">
+        <div class="icon">V</div>
+        <h3>Version tagging</h3>
+        <p>Tag each cache entry with a hash/version of the source document it came from. On read, compare versions — a mismatch means "stale, treat as a miss."</p>
+      </div>
+    </div>
+    <p style="margin-top:18px;">In practice, most teams combine all three: <strong>TTL as a safety net</strong> (nothing lives forever), <strong>event-driven purges</strong> for known updates, and <strong>version tags</strong> to catch anything the event system missed.</p>
+  </section>
+
+  <!-- 07 -->
+  <section class="panel" id="s7" data-num="07">
+    <span class="tag">07 · Putting It Together</span>
+    <h2>End-to-end RAG benchmark</h2>
+    <p class="lead">A benchmark is what turns "I think it's better" into "here's the number that proves it." Build it once, then re-run it every time you change chunking, the embedding model, top-k, or the prompt.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div>
+          <h3>Build a golden dataset</h3>
+          <p>A set of realistic questions, each with a reference ("ground truth") answer and, ideally, the source chunks that should be retrieved. 30–100 questions is a reasonable starting point.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div>
+          <h3>Run the pipeline and log everything</h3>
+          <p>For each question, record the cache hit/miss, the retrieved contexts, the generated answer, and the latency. You need all of this to diagnose failures later.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div>
+          <h3>Compute the metrics</h3>
+          <p>Run RAGAS over the logged results for faithfulness, answer relevancy, and context recall. Separately compute cache hit rate and latency percentiles.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div>
+          <h3>Interpret and iterate</h3>
+          <p>Low context recall → fix retrieval. Low faithfulness → fix the prompt or generation. Low hit rate → loosen the similarity threshold or widen TTLs.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="code-label">Python — benchmark loop</div>
+    <pre class="code"><span class="fn">import</span> time
+
+logged = []
+<span class="fn">for</span> item <span class="fn">in</span> golden_dataset:
+    start = time.time()
+    q_vec = embed(item[<span class="s">"question"</span>])
+    cached = check_cache(q_vec)
+
+    <span class="fn">if</span> cached:
+        answer, contexts, hit = cached, <span class="fn">None</span>, <span class="fn">True</span>
+    <span class="fn">else</span>:
+        contexts = retrieve(item[<span class="s">"question"</span>])
+        answer = generate(item[<span class="s">"question"</span>], contexts)
+        store_cache(q_vec, answer)
+        hit = <span class="fn">False</span>
+
+    logged.append({
+        <span class="s">"question"</span>: item[<span class="s">"question"</span>],
+        <span class="s">"answer"</span>: answer,
+        <span class="s">"contexts"</span>: contexts,
+        <span class="s">"ground_truth"</span>: item[<span class="s">"reference_answer"</span>],
+        <span class="s">"cache_hit"</span>: hit,
+        <span class="s">"latency"</span>: time.time() - start,
+    })</pre>
+
+    <div class="code-label">Interpreting a results run</div>
+    <table class="data" style="margin-top:12px;">
+      <tr><th>Metric</th><th>Score</th><th>What it tells you</th></tr>
+      <tr><td class="metric">Faithfulness</td><td class="score">0.93</td><td>Generation rarely contradicts retrieved context — trustworthy</td></tr>
+      <tr><td class="metric">Answer relevancy</td><td class="score">0.88</td><td>Answers stay on-topic and address the actual question</td></tr>
+      <tr><td class="metric">Context recall</td><td class="score">0.71</td><td>Retrieval misses information sometimes — try reranking or smaller chunks</td></tr>
+      <tr><td class="metric">Cache hit rate</td><td class="score">42%</td><td>Nearly half of queries skip the LLM entirely — real cost savings</td></tr>
+      <tr><td class="metric">P50 latency</td><td class="score">180ms / 1.4s</td><td>Cache hits are ~8x faster than a full pipeline run</td></tr>
+    </table>
+    <div class="callout"><b>The habit to build:</b> re-run this exact benchmark after every pipeline change. If a number doesn't move — or moves the wrong way — you just saved yourself from shipping a "fix" that wasn't one.</div>
+  </section>
+
+</main>
+
+<footer class="recap">
+  <h2>Session recap</h2>
+  <div class="recap-grid">
+    <div class="recap-card"><b>3 failure modes</b>Retrieval, faithfulness, answer — diagnose in that order.</div>
+    <div class="recap-card"><b>RAGAS</b>Faithfulness, answer relevancy, context recall — no manual labelling needed.</div>
+    <div class="recap-card"><b>Semantic cache</b>Embed → vector lookup → hit skips the LLM entirely.</div>
+    <div class="recap-card"><b>Invalidation</b>TTL + event-driven + version tags, layered together.</div>
+  </div>
+</footer>
+
+<script>
+  // ---- Gauges ----
+  function bandColor(v){
+    if(v >= 0.85) return getComputedStyle(document.documentElement).getPropertyValue('--teal').trim();
+    if(v >= 0.6) return getComputedStyle(document.documentElement).getPropertyValue('--amber').trim();
+    return getComputedStyle(document.documentElement).getPropertyValue('--rose').trim();
+  }
+  function renderGauge(svg){
+    var value = parseFloat(svg.dataset.value);
+    var r = 80, cx = 100, cy = 105;
+    var circumference = Math.PI * r;
+    var color = bandColor(value);
+    var ns = "http://www.w3.org/2000/svg";
+
+    var track = document.createElementNS(ns, "path");
+    track.setAttribute("d", "M " + (cx-r) + " " + cy + " A " + r + " " + r + " 0 0 1 " + (cx+r) + " " + cy);
+    track.setAttribute("fill", "none");
+    track.setAttribute("stroke", "#1B2740");
+    track.setAttribute("stroke-width", "14");
+    track.setAttribute("stroke-linecap", "round");
+    svg.appendChild(track);
+
+    var arc = document.createElementNS(ns, "path");
+    arc.setAttribute("d", "M " + (cx-r) + " " + cy + " A " + r + " " + r + " 0 0 1 " + (cx+r) + " " + cy);
+    arc.setAttribute("fill", "none");
+    arc.setAttribute("stroke", color);
+    arc.setAttribute("stroke-width", "14");
+    arc.setAttribute("stroke-linecap", "round");
+    arc.setAttribute("stroke-dasharray", (value*circumference) + " " + circumference);
+    svg.appendChild(arc);
+
+    var text = document.createElementNS(ns, "text");
+    text.setAttribute("x", cx);
+    text.setAttribute("y", cy - 8);
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("font-family", "Space Grotesk, sans-serif");
+    text.setAttribute("font-weight", "700");
+    text.setAttribute("font-size", "28");
+    text.setAttribute("fill", "#E8EEF7");
+    text.textContent = value.toFixed(2);
+    svg.appendChild(text);
+  }
+  document.querySelectorAll('.gauge').forEach(renderGauge);
+
+  // ---- Cache demo tabs ----
+  document.querySelectorAll('.demo-tab').forEach(function(tab){
+    tab.addEventListener('click', function(){
+      document.querySelectorAll('.demo-tab').forEach(function(t){ t.classList.remove('active'); });
+      tab.classList.add('active');
+      var mode = tab.dataset.mode;
+      document.querySelectorAll('[data-mode-col]').forEach(function(cell){
+        if(cell.getAttribute('data-mode-col') === mode){
+          cell.classList.remove('demo-hide');
+        } else {
+          cell.classList.add('demo-hide');
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>
