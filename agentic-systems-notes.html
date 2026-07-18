@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic Systems — Session 4 Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1117;
+    --bg-panel:#141b24;
+    --bg-card:#171f2a;
+    --line:#232d3a;
+    --text:#dbe4ee;
+    --text-dim:#8a9bb0;
+    --text-faint:#5c6b80;
+    --accent:#5eead4;
+    --accent-dim:#2c7a6d;
+    --amber:#f5a623;
+    --violet:#a78bfa;
+    --code-bg:#0a0f16;
+    --radius:10px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    line-height:1.6;
+    font-size:16px;
+  }
+  ::selection{ background:var(--accent-dim); color:#fff; }
+
+  a{ color:var(--accent); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+
+  h1,h2,h3,h4{ font-family:'Space Grotesk', sans-serif; font-weight:600; color:#f2f6fa; }
+
+  .layout{ display:flex; max-width:1280px; margin:0 auto; }
+
+  /* ---------- SIDEBAR ---------- */
+  nav.toc{
+    width:270px;
+    flex-shrink:0;
+    padding:40px 22px;
+    position:sticky;
+    top:0;
+    align-self:flex-start;
+    height:100vh;
+    overflow-y:auto;
+    border-right:1px solid var(--line);
+  }
+  nav.toc::-webkit-scrollbar{ width:6px; }
+  nav.toc::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
+  .toc-brand{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.12em;
+    color:var(--accent);
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .toc-title{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:19px;
+    font-weight:700;
+    color:#f2f6fa;
+    margin-bottom:28px;
+    line-height:1.3;
+  }
+  .toc-group{ margin-bottom:22px; }
+  .toc-group-label{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--text-faint);
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    margin-bottom:8px;
+  }
+  .toc-link{
+    display:block;
+    font-size:13.5px;
+    color:var(--text-dim);
+    padding:6px 0 6px 12px;
+    border-left:2px solid var(--line);
+    transition: color .15s, border-color .15s;
+  }
+  .toc-link:hover{ color:var(--accent); text-decoration:none; border-left-color:var(--accent); }
+
+  /* ---------- MAIN ---------- */
+  main{ flex:1; min-width:0; padding:56px 64px 120px; }
+
+  header.hero{
+    margin-bottom:64px;
+    padding-bottom:40px;
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--amber);
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    margin-bottom:14px;
+  }
+  header.hero h1{
+    font-size:38px;
+    line-height:1.15;
+    margin-bottom:16px;
+    max-width:760px;
+  }
+  header.hero p{
+    color:var(--text-dim);
+    font-size:16px;
+    max-width:640px;
+  }
+
+  section.session{ margin-bottom:88px; scroll-margin-top:24px; }
+  .session-head{ display:flex; align-items:baseline; gap:16px; margin-bottom:8px; }
+  .session-num{
+    font-family:'JetBrains Mono', monospace;
+    font-size:14px;
+    color:var(--accent);
+    border:1px solid var(--accent-dim);
+    padding:3px 10px;
+    border-radius:20px;
+    flex-shrink:0;
+  }
+  .session-head h2{ font-size:27px; }
+  .session-sub{ color:var(--text-dim); font-size:15px; margin:8px 0 36px; max-width:720px; }
+
+  .topic{
+    scroll-margin-top:24px;
+    margin-bottom:40px;
+    padding:26px 28px;
+    background:var(--bg-card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    position:relative;
+  }
+  .topic.emph{
+    border-color:var(--accent-dim);
+    background:linear-gradient(180deg, rgba(94,234,212,0.06), rgba(94,234,212,0.01));
+  }
+  .topic-tag{
+    display:inline-block;
+    font-family:'JetBrains Mono', monospace;
+    font-size:10.5px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--amber);
+    background:rgba(245,166,35,0.1);
+    border:1px solid rgba(245,166,35,0.3);
+    padding:2px 8px;
+    border-radius:4px;
+    margin-bottom:12px;
+  }
+  .topic.emph .topic-tag{
+    color:var(--accent);
+    background:rgba(94,234,212,0.1);
+    border-color:rgba(94,234,212,0.3);
+  }
+  .topic h3{ font-size:19px; margin-bottom:4px; }
+  .topic .def{
+    font-size:14.5px;
+    color:var(--text-dim);
+    font-style:italic;
+    margin:10px 0 14px;
+    padding-left:14px;
+    border-left:2px solid var(--line);
+  }
+  .topic p{ font-size:15px; color:var(--text); margin-bottom:10px; }
+  .topic ul{ margin:10px 0 6px 20px; font-size:14.5px; color:var(--text-dim); }
+  .topic ul li{ margin-bottom:6px; }
+  .topic ul li b{ color:var(--text); font-weight:600; }
+
+  .mini-table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:14px;
+    font-size:13.5px;
+  }
+  .mini-table th{
+    text-align:left;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    padding:8px 10px;
+    border-bottom:1px solid var(--line);
+  }
+  .mini-table td{
+    padding:10px 10px;
+    border-bottom:1px solid var(--line);
+    color:var(--text-dim);
+    vertical-align:top;
+  }
+  .mini-table td.k{ color:var(--accent); font-family:'JetBrains Mono', monospace; font-size:12.5px; white-space:nowrap; }
+  .mini-table tr:last-child td{ border-bottom:none; }
+
+  .flow{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:8px;
+    margin:18px 0 6px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.5px;
+  }
+  .flow .node{
+    background:var(--bg-panel);
+    border:1px solid var(--line);
+    padding:6px 12px;
+    border-radius:6px;
+    color:var(--text);
+  }
+  .flow .arrow{ color:var(--text-faint); }
+
+  code.inline{
+    font-family:'JetBrains Mono', monospace;
+    background:var(--code-bg);
+    padding:1px 6px;
+    border-radius:4px;
+    font-size:13px;
+    color:var(--accent);
+    border:1px solid var(--line);
+  }
+
+  /* code block */
+  .code-block{
+    margin-top:18px;
+    border-radius:8px;
+    overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .code-block .code-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--bg-panel);
+    padding:8px 14px;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11.5px;
+    color:var(--text-faint);
+    border-bottom:1px solid var(--line);
+  }
+  .code-block .dots{ display:flex; gap:5px; }
+  .code-block .dots span{ width:9px; height:9px; border-radius:50%; background:#3a4556; display:inline-block; }
+  pre{
+    background:var(--code-bg);
+    padding:18px 20px;
+    overflow-x:auto;
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.8px;
+    line-height:1.65;
+  }
+  pre code{ color:#c9d6e3; }
+  .tok-kw{ color:#f472b6; }
+  .tok-str{ color:#a3e635; }
+  .tok-com{ color:#5c6b80; font-style:italic; }
+  .tok-fn{ color:#5eead4; }
+  .tok-num{ color:#f5a623; }
+  .tok-cls{ color:#a78bfa; }
+
+  .callout{
+    margin-top:16px;
+    padding:14px 16px;
+    background:rgba(167,139,250,0.06);
+    border:1px solid rgba(167,139,250,0.25);
+    border-left:3px solid var(--violet);
+    border-radius:6px;
+    font-size:13.8px;
+    color:var(--text-dim);
+  }
+  .callout b{ color:var(--violet); }
+
+  .example-block{
+    margin-top:46px;
+    padding:30px 32px;
+    background:var(--bg-panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+  }
+  .example-block .topic-tag{ color:var(--violet); background:rgba(167,139,250,0.1); border-color:rgba(167,139,250,0.3); }
+  .example-block h3{ font-size:21px; margin-bottom:6px; }
+  .example-block p.lead{ color:var(--text-dim); font-size:14.5px; margin-bottom:6px; }
+  .agent-diagram{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    margin:20px 0 6px;
+  }
+  .agent-card{
+    flex:1;
+    min-width:150px;
+    background:var(--bg-card);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px 16px;
+  }
+  .agent-card .role{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--amber);
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    margin-bottom:4px;
+  }
+  .agent-card .name{ font-weight:600; font-size:14.5px; color:#f2f6fa; margin-bottom:6px; }
+  .agent-card .desc{ font-size:12.8px; color:var(--text-dim); }
+
+  footer{
+    max-width:720px;
+    margin-top:60px;
+    padding-top:24px;
+    border-top:1px solid var(--line);
+    color:var(--text-faint);
+    font-size:12.5px;
+  }
+
+  @media (max-width: 900px){
+    nav.toc{ display:none; }
+    main{ padding:36px 22px 90px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <nav class="toc">
+    <div class="toc-brand">Course Notes</div>
+    <div class="toc-title">Agentic Systems<br>— Session 4</div>
+
+    <div class="toc-group">
+      <div class="toc-group-label">4.1 Agent Fundamentals</div>
+      <a class="toc-link" href="#loop">Observe–Think–Act loop</a>
+      <a class="toc-link" href="#anatomy">Agent anatomy</a>
+      <a class="toc-link" href="#react">ReAct in detail</a>
+      <a class="toc-link" href="#plan-execute">Plan-and-Execute</a>
+      <a class="toc-link" href="#reflexion">Reflexion</a>
+      <a class="toc-link" href="#tokens">Token budgeting</a>
+      <a class="toc-link" href="#reliability">Reliability &amp; determinism</a>
+    </div>
+
+    <div class="toc-group">
+      <div class="toc-group-label">4.2 Memory Architecture</div>
+      <a class="toc-link" href="#four-types">Four memory types</a>
+      <a class="toc-link" href="#working">In-context memory</a>
+      <a class="toc-link" href="#external">External memory</a>
+      <a class="toc-link" href="#episodic">Episodic memory</a>
+      <a class="toc-link" href="#semantic">Semantic memory</a>
+      <a class="toc-link" href="#write">Write strategies</a>
+      <a class="toc-link" href="#retrieve">Retrieval strategies</a>
+      <a class="toc-link" href="#example">Multi-agent example</a>
+    </div>
+
+    <div class="toc-group">
+      <div class="toc-group-label">4.4 LangChain &amp; LangGraph</div>
+      <a class="toc-link" href="#lc-core">LangChain core</a>
+      <a class="toc-link" href="#lc-tools">Tool integrations</a>
+      <a class="toc-link" href="#lg-graph">LangGraph basics</a>
+      <a class="toc-link" href="#lg-state">State management</a>
+      <a class="toc-link" href="#lg-cycles">Cycles &amp; human-in-the-loop</a>
+      <a class="toc-link" href="#langsmith">LangSmith</a>
+    </div>
+  </nav>
+
+  <main>
+
+    <header class="hero">
+      <div class="eyebrow">Applied LLM Engineering · Module 4</div>
+      <h1>Building Agentic Systems: Fundamentals, Memory, and Frameworks</h1>
+      <p>Definitions and working notes on how agents perceive, reason, act, and remember —
+      and how frameworks like LangChain and LangGraph turn these ideas into production systems.</p>
+    </header>
+
+    <!-- ============================================================= -->
+    <!-- SESSION 4.1 -->
+    <!-- ============================================================= -->
+    <section class="session" id="session-4-1">
+      <div class="session-head">
+        <span class="session-num">4.1</span>
+        <h2>Agent Fundamentals</h2>
+      </div>
+      <p class="session-sub">What makes an LLM call an "agent" — the control loop, the moving parts, and the trade-offs that show up once you move from a demo to a production system.</p>
+
+      <div class="topic" id="loop">
+        <span class="topic-tag">Concept</span>
+        <h3>The Observe–Think–Act loop and its production implications</h3>
+        <p class="def">An agent is a system that repeatedly observes its environment, reasons about what to do next, and takes an action — looping until a goal is reached or a stop condition fires.</p>
+        <p>This is the minimal definition of "agent" as distinct from a single LLM call: a plain prompt-response is one shot; an agent keeps going, feeding the result of its own actions back into its next decision.</p>
+        <div class="flow">
+          <span class="node">Observe</span><span class="arrow">→</span>
+          <span class="node">Think</span><span class="arrow">→</span>
+          <span class="node">Act</span><span class="arrow">→</span>
+          <span class="node">(feed result back)</span>
+        </div>
+        <p><b>Production implications:</b> each loop iteration costs tokens and latency, so unbounded loops are a real cost and safety risk. Production agents need a max-iteration cap, a timeout, explicit success/failure detection, and logging of every step for debugging — none of which matter in a notebook demo but all of which matter the moment real users or real money are involved.</p>
+      </div>
+
+      <div class="topic" id="anatomy">
+        <span class="topic-tag">Concept</span>
+        <h3>Agent anatomy: perception, reasoning, action, memory</h3>
+        <p class="def">Every agent, regardless of framework, can be decomposed into four functional components.</p>
+        <table class="mini-table">
+          <tr><th>Component</th><th>Role</th></tr>
+          <tr><td class="k">Perception</td><td>Turns raw environment state — user messages, tool outputs, documents, sensor data — into a form the model can reason over.</td></tr>
+          <tr><td class="k">Reasoning</td><td>The LLM call itself: interprets the current state and decides the next step (which tool, what answer, whether to stop).</td></tr>
+          <tr><td class="k">Action</td><td>Executes the decision — calling a tool, writing to a file, sending a message, querying an API.</td></tr>
+          <tr><td class="k">Memory</td><td>Carries information across loop iterations and across sessions, so the agent isn't reasoning from a blank slate each turn.</td></tr>
+        </table>
+      </div>
+
+      <div class="topic" id="react">
+        <span class="topic-tag">Pattern</span>
+        <h3>Observe–Think–Act (ReAct) loop in detail</h3>
+        <p class="def">ReAct interleaves natural-language reasoning ("thought") with concrete actions ("tool calls"), so the model explains its plan before it acts and can revise the plan based on what comes back.</p>
+        <p>A typical ReAct step looks like: <code class="inline">Thought → Action → Observation → Thought → ...</code>. Making the reasoning explicit (rather than hidden) improves tool-selection accuracy and gives you a human-readable trace of why the agent did what it did — critical for debugging in production.</p>
+      </div>
+
+      <div class="topic" id="plan-execute">
+        <span class="topic-tag">Pattern</span>
+        <h3>Plan-and-Execute — when to plan upfront vs dynamically</h3>
+        <p class="def">Plan-and-Execute separates planning (produce a full multi-step plan upfront) from execution (carry out each step, optionally replanning if a step fails).</p>
+        <ul>
+          <li><b>Plan upfront</b> when the task is well-scoped, steps are largely independent, and you want predictable cost/latency (e.g. "research these 5 companies and summarise each").</li>
+          <li><b>Plan dynamically (ReAct-style)</b> when each step's outcome genuinely changes what should happen next — exploratory debugging, open-ended research, conversations.</li>
+          <li>Hybrid: plan upfront, but allow a replanning step whenever execution deviates from expectation.</li>
+        </ul>
+      </div>
+
+      <div class="topic" id="reflexion">
+        <span class="topic-tag">Pattern</span>
+        <h3>Reflexion — agents that learn from their own failures within a session</h3>
+        <p class="def">Reflexion has an agent critique its own failed attempt in natural language, store that critique as a short-term "lesson," and retry the task with the lesson in context — without any weight updates.</p>
+        <p>This is learning purely through the context window: the model isn't fine-tuned, but its next attempt is conditioned on an explicit verbal reflection of what went wrong last time (e.g. "the previous SQL query failed because the column name was wrong — check the schema first"). It's cheap and effective for tasks with a fast, checkable feedback signal like code execution or test results.</p>
+      </div>
+
+      <div class="topic" id="tokens">
+        <span class="topic-tag">Constraint</span>
+        <h3>Token budgeting and working memory management</h3>
+        <p class="def">Token budgeting is the practice of actively managing how much of the context window is spent on history, tool outputs, and instructions, so the agent doesn't run out of room or drown in irrelevant context.</p>
+        <ul>
+          <li><b>Truncation</b> — drop or shorten old turns once a limit is hit.</li>
+          <li><b>Summarisation</b> — periodically compress older history into a shorter summary.</li>
+          <li><b>Selective inclusion</b> — only pull in the tool outputs/documents relevant to the current step, rather than keeping everything.</li>
+        </ul>
+        <p>Left unmanaged, growing context both increases cost per call and degrades reasoning quality, since relevant details get buried in noise.</p>
+      </div>
+
+      <div class="topic" id="reliability">
+        <span class="topic-tag">Design principle</span>
+        <h3>Agent reliability: when to trust the model, when to add determinism</h3>
+        <p class="def">Reliability engineering for agents means deciding, per decision point, whether to let the LLM decide freely or to constrain it with deterministic code.</p>
+        <table class="mini-table">
+          <tr><th>Trust the model</th><th>Add determinism</th></tr>
+          <tr><td>Open-ended reasoning, summarisation, ambiguous natural-language decisions.</td><td>Anything with a correct answer computable in code — arithmetic, formatting, routing on a known field.</td></tr>
+          <tr><td>Tasks where several answers are acceptable.</td><td>Safety-critical or irreversible actions (payments, deletions) — gate with validation or human approval.</td></tr>
+        </table>
+        <p>In practice this means wrapping the model with schema validation, retries, guardrail checks, and — for high-stakes actions — a human-in-the-loop confirmation step.</p>
+      </div>
+
+      <!-- MEMORY IN AGENTS: extra requested emphasis -->
+      <div class="topic emph" id="memory-in-agents">
+        <span class="topic-tag">Focus: Memory</span>
+        <h3>Why memory matters in agentic systems</h3>
+        <p class="def">Memory is what lets an agent's decisions at step 50 be informed by what happened at step 1 — and, across sessions, by what happened yesterday. Without it, every loop iteration (and every new conversation) starts from zero.</p>
+        <p>Inside a single run, memory is what makes the Observe–Think–Act loop coherent: the agent needs to remember the original goal, prior tool results, and its own earlier reasoning so it doesn't repeat failed actions or contradict itself. This is usually just the growing conversation history — the model's context window acting as short-term memory.</p>
+        <p>Across runs, memory is what turns a stateless chatbot into something that improves and personalises over time: recalling a user's preferences, remembering facts learned in a past session, or looking back at how a similar task was solved before (as in Reflexion, but persisted long-term). This is where external storage — vector databases, key-value stores, SQL — comes in, because the context window itself is wiped between sessions and is too small to hold everything anyway.</p>
+        <p>Practically, memory in an agentic system does three jobs:</p>
+        <ul>
+          <li><b>Continuity</b> — keep the current task's state coherent across many loop iterations (working memory).</li>
+          <li><b>Recall</b> — retrieve relevant facts, past interactions, or documents on demand, rather than keeping everything in context permanently (external / episodic / semantic memory).</li>
+          <li><b>Learning without retraining</b> — accumulate lessons, preferences, and corrections in storage the agent reads from, which is far cheaper than fine-tuning and takes effect immediately.</li>
+        </ul>
+        <p>Session 4.2 breaks this down into concrete memory types and how to implement each one.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- SESSION 4.2 -->
+    <!-- ============================================================= -->
+    <section class="session" id="session-4-2">
+      <div class="session-head">
+        <span class="session-num">4.2</span>
+        <h2>Memory Architecture</h2>
+      </div>
+      <p class="session-sub">The concrete storage patterns behind "agent memory" — what to use for short-lived context, what to use for long-term recall, and how to decide when to write and how to retrieve.</p>
+
+      <div class="topic" id="four-types">
+        <span class="topic-tag">Concept</span>
+        <h3>Four memory types and when to use each</h3>
+        <p class="def">Agent memory is usually split into four categories, distinguished by lifespan and structure rather than by implementation.</p>
+        <table class="mini-table">
+          <tr><th>Type</th><th>Lifespan</th><th>Typical use</th></tr>
+          <tr><td class="k">In-context</td><td>One run / conversation</td><td>Immediate task state, recent turns, current tool outputs.</td></tr>
+          <tr><td class="k">External</td><td>Persistent</td><td>General long-term storage — documents, facts, arbitrary key-value data.</td></tr>
+          <tr><td class="k">Episodic</td><td>Persistent</td><td>Records of specific past agent runs/episodes — "what happened last time."</td></tr>
+          <tr><td class="k">Semantic</td><td>Persistent</td><td>Structured, de-duplicated knowledge — entities, facts, relationships.</td></tr>
+        </table>
+      </div>
+
+      <div class="topic" id="working">
+        <span class="topic-tag">Type 1</span>
+        <h3>In-context (working) memory — scope, limits, and management</h3>
+        <p class="def">In-context memory is whatever currently sits inside the model's context window: system prompt, conversation history, and recent tool outputs.</p>
+        <p><b>Scope:</b> exists only for the duration of the run; gone once the session ends unless explicitly persisted elsewhere. <b>Limits:</b> bounded by the model's context window and, practically, by the token-budgeting concerns from 4.1 — long-running agents will overflow it. <b>Management:</b> truncate oldest turns, summarise older segments, or keep only the last N tool results in full and compress the rest.</p>
+      </div>
+
+      <div class="topic" id="external">
+        <span class="topic-tag">Type 2</span>
+        <h3>External memory — vector stores, key-value, SQL for long-term recall</h3>
+        <p class="def">External memory is any persistent store outside the context window that the agent reads from and writes to via a tool call.</p>
+        <table class="mini-table">
+          <tr><th>Store</th><th>Good for</th></tr>
+          <tr><td class="k">Vector store</td><td>Semantic similarity search over unstructured text — "find things related to X" (Pinecone, Chroma, pgvector).</td></tr>
+          <tr><td class="k">Key-value</td><td>Fast exact lookup of known identifiers — user preferences, session state (Redis, DynamoDB).</td></tr>
+          <tr><td class="k">SQL</td><td>Structured, relational data with filters/joins — order history, precise records.</td></tr>
+        </table>
+      </div>
+
+      <div class="topic" id="episodic">
+        <span class="topic-tag">Type 3</span>
+        <h3>Episodic memory — storing and retrieving past agent runs</h3>
+        <p class="def">Episodic memory stores whole past episodes — the goal, the sequence of actions taken, and the outcome — so an agent can recall "what happened last time I did something like this."</p>
+        <p>It's the persisted counterpart to Reflexion: instead of a within-session reflection that's discarded, successful and failed trajectories are logged and can be retrieved (often via vector similarity on the task description) before a new attempt, giving the agent worked examples of its own past behaviour.</p>
+      </div>
+
+      <div class="topic" id="semantic">
+        <span class="topic-tag">Type 4</span>
+        <h3>Semantic memory — structured knowledge bases and entity stores</h3>
+        <p class="def">Semantic memory holds general, de-duplicated facts and relationships — not tied to any one episode — typically as entities and attributes (a knowledge graph or structured profile) rather than raw text.</p>
+        <p>Example: after ten conversations with a user, episodic memory has ten separate transcripts; semantic memory has the single distilled fact <code class="inline">user.dietary_preference = "vegetarian"</code>. Semantic memory is what you query when you need the current best-known fact, not the history of how it was learned.</p>
+      </div>
+
+      <div class="topic" id="write">
+        <span class="topic-tag">Strategy</span>
+        <h3>Memory write strategies: when to save, what to save, how to summarise</h3>
+        <ul>
+          <li><b>When to save</b> — at natural checkpoints: end of a task/episode, when a durable fact is confirmed, or when explicitly asked ("remember that I prefer...").</li>
+          <li><b>What to save</b> — outcomes and durable facts, not raw intermediate reasoning; save the distilled result, not the whole scratchpad.</li>
+          <li><b>How to summarise</b> — use a cheap/fast LLM call to compress a transcript into a short structured note before writing, so retrieval later is fast and relevant.</li>
+        </ul>
+      </div>
+
+      <div class="topic" id="retrieve">
+        <span class="topic-tag">Strategy</span>
+        <h3>Memory retrieval strategies: exact lookup vs semantic vs hybrid</h3>
+        <table class="mini-table">
+          <tr><th>Strategy</th><th>How it works</th><th>Best for</th></tr>
+          <tr><td class="k">Exact lookup</td><td>Fetch by known key/ID.</td><td>Structured facts you already know how to name (user_id → preferences).</td></tr>
+          <tr><td class="k">Semantic search</td><td>Embed the query, retrieve nearest neighbours by vector similarity.</td><td>Fuzzy recall — "anything related to this topic" over unstructured memory.</td></tr>
+          <tr><td class="k">Hybrid</td><td>Combine keyword/metadata filters with vector similarity (e.g. filter by user_id, then rank by similarity).</td><td>Most production systems — narrows the search space before the expensive semantic step.</td></tr>
+        </table>
+      </div>
+
+      <!-- MULTI-AGENT EXAMPLE -->
+      <div class="example-block" id="example">
+        <span class="topic-tag">Worked Example</span>
+        <h3>A small multi-agent system with shared memory (GPT-4o mini)</h3>
+        <p class="lead">Two agents collaborate on a research task: a <b>Researcher</b> agent gathers findings and writes them to a shared memory store, and a <b>Writer</b> agent reads that memory to produce a final summary. This shows external memory (a simple key-value dict standing in for a real store) plus a write strategy (summarise-then-save) and a retrieval strategy (exact lookup by topic key).</p>
+
+        <div class="agent-diagram">
+          <div class="agent-card">
+            <div class="role">Agent 1</div>
+            <div class="name">Researcher</div>
+            <div class="desc">Calls GPT-4o mini to gather raw findings on a topic, then writes a compressed summary into shared memory.</div>
+          </div>
+          <div class="agent-card">
+            <div class="role">shared store</div>
+            <div class="name">memory_store</div>
+            <div class="desc">Key-value dict keyed by topic. Stands in for a real external memory (SQL / vector store / KV DB).</div>
+          </div>
+          <div class="agent-card">
+            <div class="role">Agent 2</div>
+            <div class="name">Writer</div>
+            <div class="desc">Reads the Researcher's notes from memory (exact lookup by key) and drafts a final answer for the user.</div>
+          </div>
+        </div>
+
+        <div class="code-block">
+          <div class="code-head">
+            <span>multi_agent_memory.py</span>
+            <div class="dots"><span></span><span></span><span></span></div>
+          </div>
+          <pre><code><span class="tok-kw">import</span> os
+<span class="tok-kw">from</span> openai <span class="tok-kw">import</span> OpenAI
+
+client = OpenAI(api_key=os.getenv(<span class="tok-str">"OPENAI_API_KEY"</span>))
+MODEL = <span class="tok-str">"gpt-4o-mini"</span>
+
+<span class="tok-com"># ---- shared external memory (stand-in for a real KV / vector store) ----</span>
+memory_store = {}
+
+<span class="tok-kw">def</span> <span class="tok-fn">write_memory</span>(key, content):
+    <span class="tok-com">"""Write strategy: store a distilled note, keyed for exact lookup later."""</span>
+    memory_store[key] = content
+
+<span class="tok-kw">def</span> <span class="tok-fn">read_memory</span>(key):
+    <span class="tok-com">"""Retrieval strategy: exact lookup by topic key."""</span>
+    <span class="tok-kw">return</span> memory_store.get(key, <span class="tok-str">""</span>)
+
+
+<span class="tok-com"># ---- Agent 1: Researcher ----</span>
+<span class="tok-kw">def</span> <span class="tok-fn">researcher_agent</span>(topic):
+    response = client.responses.create(
+        model=MODEL,
+        instructions=(
+            <span class="tok-str">"You are a research agent. Gather 3-4 concise, factual "</span>
+            <span class="tok-str">"bullet points on the given topic. Be brief and precise."</span>
+        ),
+        input=<span class="tok-kw">f</span><span class="tok-str">"Research topic: {topic}"</span>,
+    )
+    findings = response.output_text
+
+    <span class="tok-com"># Summarise-then-save: compress before writing to shared memory</span>
+    summary_response = client.responses.create(
+        model=MODEL,
+        instructions=<span class="tok-str">"Compress the following notes into a 2-sentence summary."</span>,
+        input=findings,
+    )
+    write_memory(topic, summary_response.output_text)
+    <span class="tok-kw">return</span> findings
+
+
+<span class="tok-com"># ---- Agent 2: Writer ----</span>
+<span class="tok-kw">def</span> <span class="tok-fn">writer_agent</span>(topic):
+    notes = read_memory(topic)  <span class="tok-com"># exact lookup, no re-research needed</span>
+    <span class="tok-kw">if not</span> notes:
+        <span class="tok-kw">return</span> <span class="tok-str">"No research found in memory for this topic yet."</span>
+
+    response = client.responses.create(
+        model=MODEL,
+        instructions=(
+            <span class="tok-str">"You are a writing agent. Using only the provided research "</span>
+            <span class="tok-str">"notes, write a short, polished paragraph for the end user."</span>
+        ),
+        input=<span class="tok-kw">f</span><span class="tok-str">"Research notes:\n{notes}\n\nWrite the final summary."</span>,
+    )
+    <span class="tok-kw">return</span> response.output_text
+
+
+<span class="tok-com"># ---- orchestration ----</span>
+<span class="tok-kw">if</span> __name__ == <span class="tok-str">"__main__"</span>:
+    topic = <span class="tok-str">"retrieval-augmented generation"</span>
+
+    researcher_agent(topic)              <span class="tok-com"># writes to memory_store</span>
+    final_answer = writer_agent(topic)   <span class="tok-com"># reads from memory_store</span>
+
+    <span class="tok-fn">print</span>(final_answer)
+</code></pre>
+        </div>
+
+        <div class="callout">
+          <b>What this demonstrates:</b> the Researcher and Writer never talk to each other directly — they communicate only through <code class="inline">memory_store</code>, exactly like an episodic/external memory layer in a production system. Swap the dict for a real vector DB or SQL table and a <code class="inline">read_memory()</code> that does semantic search instead of exact lookup, and this becomes a genuine hybrid-retrieval multi-agent pipeline.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- SESSION 4.4 -->
+    <!-- ============================================================= -->
+    <section class="session" id="session-4-4">
+      <div class="session-head">
+        <span class="session-num">4.4</span>
+        <h2>LangChain &amp; LangGraph</h2>
+      </div>
+      <p class="session-sub">The most widely used agent framework ecosystem — LangChain for composing LLM calls and tools, LangGraph for expressing an agent as an explicit stateful graph, and LangSmith for observing it all in production.</p>
+
+      <div class="topic" id="lc-core">
+        <span class="topic-tag">Framework</span>
+        <h3>LangChain core: chains, runnables, and the LCEL interface</h3>
+        <p class="def">LangChain is a framework for composing LLM calls, prompts, tools, and parsers into reusable pipelines called chains, using a uniform interface called Runnables.</p>
+        <ul>
+          <li><b>Chain</b> — a sequence of steps (prompt → model → parser) that together perform one logical operation.</li>
+          <li><b>Runnable</b> — the common interface (<code class="inline">invoke</code>, <code class="inline">stream</code>, <code class="inline">batch</code>) every component implements, so components snap together interchangeably.</li>
+          <li><b>LCEL (LangChain Expression Language)</b> — the pipe syntax, e.g. <code class="inline">prompt | model | parser</code>, for declaratively composing Runnables into a chain.</li>
+        </ul>
+      </div>
+
+      <div class="topic" id="lc-tools">
+        <span class="topic-tag">Framework</span>
+        <h3>Built-in tool integrations and custom tool creation</h3>
+        <p class="def">A "tool" in LangChain is a function the model can choose to call, described to the model by name, description, and argument schema.</p>
+        <p>LangChain ships integrations for common tools out of the box (web search, code execution, SQL, retrievers over vector stores). Custom tools are created by wrapping any Python function with a decorator (e.g. <code class="inline">@tool</code>) plus a docstring the model uses to decide when and how to call it — the docstring quality directly affects how reliably the model picks the right tool.</p>
+      </div>
+
+      <div class="topic" id="lg-graph">
+        <span class="topic-tag">Framework</span>
+        <h3>LangGraph: agent as a graph of nodes and edges</h3>
+        <p class="def">LangGraph models an agent explicitly as a directed graph: nodes are units of work (an LLM call, a tool call, a plain function), and edges define what runs next based on the current state.</p>
+        <p>This is a deliberate contrast to a purely linear chain: agent control flow is rarely a straight line (it loops, branches, and sometimes needs a human to step in), and a graph makes that control flow explicit and inspectable rather than buried in conditional Python.</p>
+      </div>
+
+      <div class="topic" id="lg-state">
+        <span class="topic-tag">Framework</span>
+        <h3>State management in LangGraph — typed state schemas</h3>
+        <p class="def">Every LangGraph graph carries a single typed state object that every node reads from and writes updates to as it moves through the graph.</p>
+        <p>The schema (commonly a <code class="inline">TypedDict</code> or Pydantic model) declares exactly which fields exist — e.g. <code class="inline">messages</code>, <code class="inline">retrieved_docs</code>, <code class="inline">iteration_count</code> — giving type safety and a single source of truth for "what the agent currently knows," which doubles as its in-context/working memory for that run.</p>
+      </div>
+
+      <div class="topic" id="lg-cycles">
+        <span class="topic-tag">Framework</span>
+        <h3>Cycles, branching, and human-in-the-loop nodes</h3>
+        <ul>
+          <li><b>Cycles</b> — an edge can point back to an earlier node, enabling the Observe-Think-Act loop from 4.1 to run as a literal loop in the graph (e.g. "tool node → back to reasoning node") until a stop condition is met.</li>
+          <li><b>Branching</b> — conditional edges route to different next nodes based on the current state (e.g. "if the model requested a tool, go to the tool node; otherwise end").</li>
+          <li><b>Human-in-the-loop nodes</b> — a node that pauses graph execution and waits for human approval/input before continuing, used for the "add determinism / require confirmation" cases discussed under agent reliability in 4.1.</li>
+        </ul>
+      </div>
+
+      <div class="topic" id="langsmith">
+        <span class="topic-tag">Tooling</span>
+        <h3>LangSmith for tracing, debugging, and dataset management</h3>
+        <p class="def">LangSmith is the observability platform for LangChain/LangGraph applications: it records a full trace of every run — each node, prompt, tool call, and token used — for debugging and evaluation.</p>
+        <p>Beyond tracing individual runs, it supports building evaluation datasets from real or synthetic examples and running regression tests against them, which is how teams catch a prompt or graph change that quietly degrades agent behaviour before it reaches production.</p>
+      </div>
+
+    </section>
+
+    <footer>
+      Session 4 · Agent Fundamentals, Memory Architecture &amp; LangChain/LangGraph — course reference notes.
+    </footer>
+
+  </main>
+</div>
+
+</body>
+</html>
